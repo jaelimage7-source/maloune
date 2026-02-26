@@ -1,0 +1,735 @@
+// ============================================================
+// PRISMA SCHEMA — BOUTIQUE DROPSHIPPING
+// Compatible avec CJ Dropshipping API V2.0
+// Stack: PostgreSQL + Node.js + Next.js + Prisma
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  CREATED
+  IN_CART
+  UNPAID
+  UNSHIPPED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+  DISPUTE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYPAL
+}
+
+enum LocaleCode {
+  fr
+  ht
+  en
+}
+
+enum CurrencyCode {
+  EUR
+  USD
+  GBP
+  HTG
+}
+
+enum DiscountType {
+  percentage
+  fixed_amount
+  free_shipping
+}
+
+// ============================================================
+// CATÉGORIES (sync CJ API getCategory)
+// ============================================================
+
+model Category {
+  id            String   @id @default(uuid())
+  cjCategoryId  String?  @unique @map("cj_category_id")
+  parentId      String?  @map("parent_id")
+  level         Int      @default(1)
+  slug          String   @unique
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  parent        Category?              @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children      Category[]             @relation("CategoryHierarchy")
+  translations  CategoryTranslation[]
+  products      Product[]
+
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  id          String     @id @default(uuid())
+  categoryId  String     @map("category_id")
+  locale      LocaleCode
+  name        String
+  description String?
+
+  category    Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@map("category_translations")
+}
+
+// ============================================================
+// PRODUITS (sync CJ API Product List V2)
+// ============================================================
+
+model Product {
+  id                    String   @id @default(uuid())
+
+  // Identifiants CJ
+  cjProductId           String?  @unique @map("cj_product_id")
+  cjSku                 String?  @map("cj_sku")
+  cjSpu                 String?  @map("cj_spu")
+
+  // Catégorie
+  categoryId            String?  @map("category_id")
+
+  // Prix
+  cjSellPrice           Decimal? @map("cj_sell_price") @db.Decimal(18, 2)
+  cjNowPrice            Decimal? @map("cj_now_price") @db.Decimal(18, 2)
+  sellPrice             Decimal  @map("sell_price") @db.Decimal(18, 2)
+  compareAtPrice        Decimal? @map("compare_at_price") @db.Decimal(18, 2)
+  costPrice             Decimal? @map("cost_price") @db.Decimal(18, 2)
+  currency              CurrencyCode @default(EUR)
+
+  // Médias
+  mainImageUrl          String?  @map("main_image_url")
+  images                Json     @default("[]")
+  videoUrls             Json     @default("[]") @map("video_urls")
+
+  // Inventaire CJ
+  cjWarehouseInventory  Int      @default(0) @map("cj_warehouse_inventory")
+  cjVerifiedInventory   Int      @default(0) @map("cj_verified_inventory")
+  cjDeliveryCycle       String?  @map("cj_delivery_cycle")
+
+  // Métadonnées
+  slug                  String   @unique
+  weightGrams           Int?     @map("weight_grams")
+  isActive              Boolean  @default(true) @map("is_active")
+  isFeatured            Boolean  @default(false) @map("is_featured")
+  isFreeShipping        Boolean  @default(false) @map("is_free_shipping")
+  productType           String?  @map("product_type")
+
+  // SEO
+  metaTitle             String?  @map("meta_title")
+  metaDescription       String?  @map("meta_description")
+
+  // Sync
+  cjLastSyncedAt        DateTime? @map("cj_last_synced_at")
+  cjRawData             Json?     @map("cj_raw_data")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  category              Category?              @relation(fields: [categoryId], references: [id])
+  translations          ProductTranslation[]
+  variants              ProductVariant[]
+  cartItems             CartItem[]
+  orderItems            OrderItem[]
+  reviews               ProductReview[]
+
+  @@index([cjSku])
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("products")
+}
+
+model ProductTranslation {
+  id               String     @id @default(uuid())
+  productId        String     @map("product_id")
+  locale           LocaleCode
+  name             String
+  description      String?
+  shortDescription String?    @map("short_description")
+  metaTitle        String?    @map("meta_title")
+  metaDescription  String?    @map("meta_description")
+
+  product          Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@map("product_translations")
+}
+
+// ============================================================
+// VARIANTES (sync CJ Variant API)
+// ============================================================
+
+model ProductVariant {
+  id              String   @id @default(uuid())
+  productId       String   @map("product_id")
+
+  // CJ
+  cjVariantId     String?  @unique @map("cj_variant_id")
+  cjVariantSku    String?  @map("cj_variant_sku")
+
+  // Propriétés
+  variantName     String?  @map("variant_name")
+  properties      Json     @default("{}") // {"color": "Red", "size": "XL"}
+  variantImageUrl String?  @map("variant_image_url")
+
+  // Prix
+  cjSellPrice     Decimal? @map("cj_sell_price") @db.Decimal(18, 2)
+  sellPrice       Decimal  @map("sell_price") @db.Decimal(18, 2)
+  compareAtPrice  Decimal? @map("compare_at_price") @db.Decimal(18, 2)
+
+  // Inventaire
+  cjInventory       Int    @default(0) @map("cj_inventory")
+  inventoryQuantity Int    @default(0) @map("inventory_quantity")
+
+  // Statut
+  isActive        Boolean  @default(true) @map("is_active")
+  sortOrder       Int      @default(0) @map("sort_order")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product         Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+// ============================================================
+// CLIENTS
+// ============================================================
+
+model Customer {
+  id                String       @id @default(uuid())
+
+  email             String       @unique
+  passwordHash      String?      @map("password_hash")
+
+  firstName         String?      @map("first_name")
+  lastName          String?      @map("last_name")
+  phone             String?
+
+  preferredLocale   LocaleCode   @default(fr) @map("preferred_locale")
+  preferredCurrency CurrencyCode @default(EUR) @map("preferred_currency")
+
+  stripeCustomerId  String?      @unique @map("stripe_customer_id")
+  paypalPayerId     String?      @map("paypal_payer_id")
+
+  isActive          Boolean      @default(true) @map("is_active")
+  isVerified        Boolean      @default(false) @map("is_verified")
+  emailVerifiedAt   DateTime?    @map("email_verified_at")
+  acceptsMarketing  Boolean      @default(false) @map("accepts_marketing")
+
+  lastLoginAt       DateTime?    @map("last_login_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  addresses         CustomerAddress[]
+  carts             Cart[]
+  orders            Order[]
+  reviews           ProductReview[]
+  sessions          Session[]
+  passwordResets    PasswordResetToken[]
+  discountUsages   DiscountUsage[]
+
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id              String   @id @default(uuid())
+  customerId      String   @map("customer_id")
+
+  // Correspondance CJ API createOrderV2
+  customerName    String   @map("customer_name")
+  phone           String?
+  email           String?
+
+  addressLine1    String   @map("address_line1")
+  addressLine2    String?  @map("address_line2")
+  houseNumber     String?  @map("house_number")
+  city            String
+  county          String?
+  province        String?
+  postalCode      String?  @map("postal_code")
+  country         String
+  countryCode     String   @map("country_code")
+
+  taxId           String?  @map("tax_id")
+  isDefault       Boolean  @default(false) @map("is_default")
+  label           String?
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_addresses")
+}
+
+// ============================================================
+// PANIER
+// ============================================================
+
+model Cart {
+  id          String       @id @default(uuid())
+  customerId  String?      @map("customer_id")
+  sessionId   String?      @map("session_id")
+  locale      LocaleCode   @default(fr)
+  currency    CurrencyCode @default(EUR)
+  expiresAt   DateTime     @map("expires_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  customer    Customer?    @relation(fields: [customerId], references: [id])
+  items       CartItem[]
+
+  @@index([customerId])
+  @@index([sessionId])
+  @@map("carts")
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  cartId     String   @map("cart_id")
+  productId  String   @map("product_id")
+  variantId  String?  @map("variant_id")
+  quantity   Int      @default(1)
+  unitPrice  Decimal  @map("unit_price") @db.Decimal(18, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  cart       Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product    Product        @relation(fields: [productId], references: [id])
+  variant    ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, productId, variantId])
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+// ============================================================
+// COMMANDES
+// ============================================================
+
+model Order {
+  id                    String      @id @default(uuid())
+
+  orderNumber           String      @unique @map("order_number")
+  cjOrderId             String?     @map("cj_order_id")
+  cjOrderNum            String?     @map("cj_order_num")
+
+  customerId            String?     @map("customer_id")
+  customerEmail         String      @map("customer_email")
+
+  // Adresse livraison (snapshot)
+  shippingCustomerName  String      @map("shipping_customer_name")
+  shippingPhone         String?     @map("shipping_phone")
+  shippingAddress       String      @map("shipping_address")
+  shippingAddress2      String?     @map("shipping_address2")
+  shippingHouseNumber   String?     @map("shipping_house_number")
+  shippingCity          String      @map("shipping_city")
+  shippingCounty        String?     @map("shipping_county")
+  shippingProvince      String?     @map("shipping_province")
+  shippingPostalCode    String?     @map("shipping_postal_code")
+  shippingCountry       String      @map("shipping_country")
+  shippingCountryCode   String      @map("shipping_country_code")
+  shippingTaxId         String?     @map("shipping_tax_id")
+
+  // Montants
+  subtotal              Decimal     @default(0) @db.Decimal(18, 2)
+  shippingCost          Decimal     @default(0) @map("shipping_cost") @db.Decimal(18, 2)
+  taxAmount             Decimal     @default(0) @map("tax_amount") @db.Decimal(18, 2)
+  discountAmount        Decimal     @default(0) @map("discount_amount") @db.Decimal(18, 2)
+  totalAmount           Decimal     @default(0) @map("total_amount") @db.Decimal(18, 2)
+  currency              CurrencyCode @default(EUR)
+
+  // CJ Montants
+  cjProductAmount       Decimal?    @map("cj_product_amount") @db.Decimal(18, 2)
+  cjPostageAmount       Decimal?    @map("cj_postage_amount") @db.Decimal(18, 2)
+  cjOrderAmount         Decimal?    @map("cj_order_amount") @db.Decimal(18, 2)
+
+  // Statut
+  status                OrderStatus @default(PENDING)
+  cjOrderStatus         String?     @map("cj_order_status")
+
+  // Logistique CJ
+  cjLogisticName        String?     @map("cj_logistic_name")
+  cjFromCountryCode     String?     @map("cj_from_country_code")
+  cjStorageId           String?     @map("cj_storage_id")
+  cjStorageName         String?     @map("cj_storage_name")
+
+  // Tracking
+  trackingNumber        String?     @map("tracking_number")
+  trackingUrl           String?     @map("tracking_url")
+  shippedAt             DateTime?   @map("shipped_at")
+  deliveredAt           DateTime?   @map("delivered_at")
+
+  // IOSS (EU)
+  iossType              String?     @map("ioss_type")
+  iossNumber            String?     @map("ioss_number")
+
+  // Notes
+  customerNote          String?     @map("customer_note")
+  internalNote          String?     @map("internal_note")
+  remark                String?
+
+  // Métadonnées
+  locale                LocaleCode  @default(fr)
+  ipAddress             String?     @map("ip_address")
+  userAgent             String?     @map("user_agent")
+
+  // Sync CJ
+  cjSyncedAt            DateTime?   @map("cj_synced_at")
+  cjPaidAt              DateTime?   @map("cj_paid_at")
+  cjRawData             Json?       @map("cj_raw_data")
+
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  customer              Customer?          @relation(fields: [customerId], references: [id])
+  items                 OrderItem[]
+  payments              Payment[]
+  refunds               Refund[]
+  tracking              ShipmentTracking[]
+  emailLogs             EmailLog[]
+  discountUsages        DiscountUsage[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String   @id @default(uuid())
+  orderId           String   @map("order_id")
+  productId         String?  @map("product_id")
+  variantId         String?  @map("variant_id")
+
+  // CJ
+  cjVariantId       String?  @map("cj_variant_id")
+  cjLineItemId      String?  @map("cj_line_item_id")
+  storeLineItemId   String?  @map("store_line_item_id")
+
+  // Snapshot
+  productName       String   @map("product_name")
+  variantName       String?  @map("variant_name")
+  productImageUrl   String?  @map("product_image_url")
+  sku               String?
+
+  // Montants
+  quantity          Int      @default(1)
+  unitPrice         Decimal  @map("unit_price") @db.Decimal(18, 2)
+  cjSellPrice       Decimal? @map("cj_sell_price") @db.Decimal(18, 2)
+  totalPrice        Decimal  @map("total_price") @db.Decimal(18, 2)
+
+  // CJ production
+  cjProductionStatus Int?    @map("cj_production_status")
+  cjAbnormalTypes    Json?   @map("cj_abnormal_types")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  order             Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product?       @relation(fields: [productId], references: [id])
+  variant           ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// ============================================================
+// PAIEMENTS
+// ============================================================
+
+model Payment {
+  id                     String         @id @default(uuid())
+  orderId                String         @map("order_id")
+
+  provider               PaymentProvider
+  stripePaymentIntentId  String?        @map("stripe_payment_intent_id")
+  stripeChargeId         String?        @map("stripe_charge_id")
+  paypalOrderId          String?        @map("paypal_order_id")
+  paypalCaptureId        String?        @map("paypal_capture_id")
+
+  amount                 Decimal        @db.Decimal(18, 2)
+  currency               CurrencyCode
+  feeAmount              Decimal?       @map("fee_amount") @db.Decimal(18, 2)
+  netAmount              Decimal?       @map("net_amount") @db.Decimal(18, 2)
+
+  status                 PaymentStatus  @default(PENDING)
+  providerResponse       Json?          @map("provider_response")
+  failureReason          String?        @map("failure_reason")
+
+  paidAt                 DateTime?      @map("paid_at")
+  refundedAt             DateTime?      @map("refunded_at")
+  createdAt              DateTime       @default(now()) @map("created_at")
+  updatedAt              DateTime       @updatedAt @map("updated_at")
+
+  order                  Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds                Refund[]
+
+  @@index([orderId])
+  @@index([stripePaymentIntentId])
+  @@index([paypalOrderId])
+  @@map("payments")
+}
+
+model Refund {
+  id              String       @id @default(uuid())
+  paymentId       String       @map("payment_id")
+  orderId         String       @map("order_id")
+
+  stripeRefundId  String?      @map("stripe_refund_id")
+  paypalRefundId  String?      @map("paypal_refund_id")
+
+  amount          Decimal      @db.Decimal(18, 2)
+  currency        CurrencyCode
+  reason          String?
+  status          String       @default("PENDING")
+  providerResponse Json?       @map("provider_response")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  payment         Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+// ============================================================
+// SUIVI LIVRAISON
+// ============================================================
+
+model ShipmentTracking {
+  id                    String    @id @default(uuid())
+  orderId               String    @map("order_id")
+
+  trackingNumber        String    @map("tracking_number")
+  carrierCode           String?   @map("carrier_code")
+  carrierName           String?   @map("carrier_name")
+  trackingUrl           String?   @map("tracking_url")
+
+  currentStatus         String?   @map("current_status")
+  statusDetail          String?   @map("status_detail")
+
+  estimatedDeliveryDate DateTime? @map("estimated_delivery_date") @db.Date
+  actualDeliveryDate    DateTime? @map("actual_delivery_date") @db.Date
+  lastEventAt           DateTime? @map("last_event_at")
+
+  events                Json      @default("[]")
+  aftershipTrackingId   String?   @map("aftership_tracking_id")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  order                 Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([trackingNumber])
+  @@map("shipment_tracking")
+}
+
+// ============================================================
+// CODES PROMO
+// ============================================================
+
+model DiscountCode {
+  id                   String       @id @default(uuid())
+  code                 String       @unique
+  discountType         DiscountType @map("discount_type")
+  discountValue        Decimal      @map("discount_value") @db.Decimal(18, 2)
+  currency             CurrencyCode @default(EUR)
+
+  minimumOrderAmount   Decimal?     @map("minimum_order_amount") @db.Decimal(18, 2)
+  maximumDiscountAmount Decimal?    @map("maximum_discount_amount") @db.Decimal(18, 2)
+
+  usageLimit           Int?         @map("usage_limit")
+  usageCount           Int          @default(0) @map("usage_count")
+  perCustomerLimit     Int          @default(1) @map("per_customer_limit")
+
+  startsAt             DateTime     @default(now()) @map("starts_at")
+  expiresAt            DateTime?    @map("expires_at")
+  isActive             Boolean      @default(true) @map("is_active")
+
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  usages               DiscountUsage[]
+
+  @@map("discount_codes")
+}
+
+model DiscountUsage {
+  id              String   @id @default(uuid())
+  discountCodeId  String   @map("discount_code_id")
+  orderId         String   @map("order_id")
+  customerId      String?  @map("customer_id")
+  discountAmount  Decimal  @map("discount_amount") @db.Decimal(18, 2)
+  usedAt          DateTime @default(now()) @map("used_at")
+
+  discountCode    DiscountCode @relation(fields: [discountCodeId], references: [id], onDelete: Cascade)
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+
+  @@map("discount_usage")
+}
+
+// ============================================================
+// AVIS CLIENTS
+// ============================================================
+
+model ProductReview {
+  id                String     @id @default(uuid())
+  productId         String     @map("product_id")
+  customerId        String?    @map("customer_id")
+  orderId           String?    @map("order_id")
+
+  rating            Int
+  title             String?
+  content           String?
+  images            Json       @default("[]")
+
+  isVerifiedPurchase Boolean   @default(false) @map("is_verified_purchase")
+  isApproved         Boolean   @default(false) @map("is_approved")
+  isFeatured         Boolean   @default(false) @map("is_featured")
+
+  locale            LocaleCode @default(fr)
+
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  product           Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer          Customer?  @relation(fields: [customerId], references: [id])
+
+  @@index([productId])
+  @@map("product_reviews")
+}
+
+// ============================================================
+// CONFIG CJ DROPSHIPPING
+// ============================================================
+
+model CjConfig {
+  id                    String    @id @default(uuid())
+  apiEmail              String    @map("api_email")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  tokenExpiresAt        DateTime? @map("token_expires_at")
+
+  defaultFromCountryCode String   @default("CN") @map("default_from_country_code")
+  preferredStorageId     String?  @map("preferred_storage_id")
+  preferredLogisticName  String?  @map("preferred_logistic_name")
+  defaultMarginPercent   Decimal  @default(50.00) @map("default_margin_percent") @db.Decimal(5, 2)
+
+  webhookSecret         String?  @map("webhook_secret")
+  lastProductSyncAt     DateTime? @map("last_product_sync_at")
+  lastOrderSyncAt       DateTime? @map("last_order_sync_at")
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("cj_config")
+}
+
+// ============================================================
+// SESSIONS & AUTH
+// ============================================================
+
+model Session {
+  id          String   @id @default(uuid())
+  customerId  String   @map("customer_id")
+  tokenHash   String   @unique @map("token_hash")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid())
+  customerId  String    @map("customer_id")
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+// ============================================================
+// EMAIL LOGS
+// ============================================================
+
+model EmailLog {
+  id                String     @id @default(uuid())
+  customerId        String?    @map("customer_id")
+  orderId           String?    @map("order_id")
+
+  toEmail           String     @map("to_email")
+  subject           String
+  template          String
+  locale            LocaleCode @default(fr)
+
+  provider          String?
+  providerMessageId String?    @map("provider_message_id")
+  status            String     @default("SENT")
+  sentAt            DateTime   @default(now()) @map("sent_at")
+
+  order             Order?     @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@map("email_logs")
+}
+
+// ============================================================
+// PARAMÈTRES BOUTIQUE
+// ============================================================
+
+model StoreSetting {
+  key         String   @id
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("store_settings")
+}

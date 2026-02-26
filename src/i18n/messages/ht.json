@@ -1,0 +1,118 @@
+{
+  "common": {
+    "siteName": "Maloune",
+    "home": "Akèy",
+    "products": "Pwodwi",
+    "cart": "Panye",
+    "account": "Kont mwen",
+    "login": "Konekte",
+    "register": "Enskri",
+    "logout": "Dekonekte",
+    "search": "Chèche...",
+    "addToCart": "Mete nan panye",
+    "buyNow": "Achte kounye a",
+    "viewProduct": "Wè pwodwi a",
+    "freeShipping": "Livrezon gratis",
+    "inStock": "Disponib",
+    "outOfStock": "Pa disponib",
+    "quantity": "Kantite",
+    "price": "Pri",
+    "total": "Total",
+    "subtotal": "Sou-total",
+    "shipping": "Livrezon",
+    "tax": "Taks",
+    "discount": "Rabè",
+    "checkout": "Peye kòmand lan",
+    "continueShopping": "Kontinye achte",
+    "orderConfirmed": "Kòmand konfime",
+    "trackOrder": "Swiv kòmand mwen",
+    "contactUs": "Kontakte nou",
+    "loading": "Ap chaje...",
+    "error": "Yon erè rive",
+    "retry": "Eseye ankò",
+    "save": "Anrejistre",
+    "cancel": "Anile",
+    "delete": "Efase",
+    "edit": "Modifye",
+    "close": "Fèmen",
+    "back": "Retounen",
+    "next": "Swivan",
+    "previous": "Avan",
+    "seeAll": "Wè tout",
+    "noResults": "Pa gen rezilta"
+  },
+  "home": {
+    "hero": {
+      "title": "Dekouvri seleksyon nou yo",
+      "subtitle": "Pi bon pwodwi yo, livre lakay ou",
+      "cta": "Eksplore boutik la"
+    },
+    "featured": {
+      "title": "Pwodwi popilè",
+      "subtitle": "Pi bon vant moman sa a"
+    },
+    "categories": {
+      "title": "Kategori nou yo",
+      "subtitle": "Jwenn sa w ap chèche a"
+    },
+    "newsletter": {
+      "title": "Rete enfòme",
+      "subtitle": "Enskri pou resevwa òf eksklusif nou yo",
+      "placeholder": "Imèl ou",
+      "cta": "Enskri"
+    },
+    "guarantees": {
+      "shipping": "Livrezon rapid",
+      "shippingDesc": "Ekspedye nan 2-5 jou",
+      "secure": "Peyman sekirize",
+      "secureDesc": "Stripe ak PayPal",
+      "support": "Sipò 24/7",
+      "supportDesc": "Nou la pou ou",
+      "returns": "Retou fasil",
+      "returnsDesc": "30 jou pou chanje lide w"
+    }
+  },
+  "product": {
+    "description": "Deskripsyon",
+    "reviews": "Avi kliyan yo",
+    "noReviews": "Pa gen avi pou kounye a",
+    "writeReview": "Ekri yon avi",
+    "relatedProducts": "Pwodwi ki sanble",
+    "deliveryTime": "Delè livrezon",
+    "days": "jou"
+  },
+  "cart": {
+    "title": "Panye mwen",
+    "empty": "Panye ou a vid",
+    "emptyDesc": "Dekouvri pwodwi nou yo epi ajoute favori ou yo",
+    "remove": "Retire",
+    "promoCode": "Kòd pwomosyon",
+    "apply": "Aplike",
+    "summary": "Rezime kòmand lan"
+  },
+  "checkout": {
+    "title": "Peyman",
+    "shipping": "Adrès livrezon",
+    "payment": "Mòd peyman",
+    "review": "Verifikasyon",
+    "placeOrder": "Konfime kòmand lan",
+    "processing": "Ap trete..."
+  },
+  "account": {
+    "title": "Kont mwen",
+    "orders": "Kòmand mwen yo",
+    "addresses": "Adrès mwen yo",
+    "settings": "Paramèt",
+    "noOrders": "Pa gen kòmand pou kounye a"
+  },
+  "footer": {
+    "about": "Sou nou",
+    "aboutText": "Maloune — Boutik an liy konfyans ou. Pwodwi tandans livre lakay ou.",
+    "links": "Lyen itil",
+    "legal": "Mansyon legal",
+    "privacy": "Politik konfidansyalite",
+    "terms": "Kondisyon jeneral",
+    "refund": "Politik ranbousman",
+    "copyright": "© {year} Maloune. Tout dwa rezève."
+  }
+}
