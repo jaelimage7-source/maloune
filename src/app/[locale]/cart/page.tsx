@@ -9,7 +9,11 @@ import { useState } from 'react';
 export default function CartPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const { items, removeItem, updateQuantity, totalPrice, itemCount } = useCartStore();
+  const items = useCartStore((s) => s.items);
+  const removeItem = useCartStore((s) => s.removeItem);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const totalPrice = useCartStore((s) => s.totalPrice);
+  const totalItems = useCartStore((s) => s.totalItems);
   const [loading, setLoading] = useState(false);
 
   const handleCheckout = async () => {
@@ -52,7 +56,7 @@ export default function CartPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="container-shop py-10">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('cart.title')} ({itemCount()})</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('cart.title')} ({totalItems()})</h1>
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
