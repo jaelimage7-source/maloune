@@ -1,14 +1,39 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useState, useEffect } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Link } from '@/i18n/routing';
-import { ArrowRight, Star, Truck, Shield, Headphones, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowRight, Truck, Shield, Headphones, RotateCcw, Sparkles, Loader2 } from 'lucide-react';
 import ProductCard from '@/components/products/ProductCard';
-import { PRODUCTS, CATEGORIES } from '@/lib/products';
+
+interface Product {
+  id: string; slug: string; name: string; description: string;
+  price: number; comparePrice?: number; image: string; images: string[];
+  category: string; categorySlug: string; rating: number; reviewCount: number;
+  inStock: boolean; tag?: string;
+}
+interface Category { name: string; slug: string; }
 
 export default function HomePage() {
   const t = useTranslations();
-  const featuredProducts = PRODUCTS.filter((p) => p.tag).slice(0, 4);
+  const locale = useLocale();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/products?locale=${locale}`)
+      .then(r => r.json())
+      .then(d => {
+        setProducts(d.products || []);
+        setCategories(d.categories || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [locale]);
+
+  const featuredProducts = products.slice(0, 4);
+  const allProducts = products.slice(0, 8);
 
   return (
     <main>
@@ -20,16 +45,16 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-orange-200 rounded-full px-4 py-2 mb-8 shadow-sm">
               <Sparkles className="w-4 h-4 text-orange-500" />
-              <span className="text-sm font-medium text-orange-700">Nouvelle collection disponible</span>
+              <span className="text-sm font-medium text-orange-700">{t('home.hero.title')}</span>
             </div>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.1] mb-6">
-              {t('home.hero.title')}
+              {t('home.hero.subtitle')}
               <span className="block mt-2 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent">
                 Maloune
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 mb-10 max-w-xl mx-auto leading-relaxed">
-              {t('home.hero.subtitle')}
+              {t('home.guarantees.shippingDesc')} • {t('home.guarantees.secureDesc')}
             </p>
             <Link
               href="/products"
@@ -76,11 +101,15 @@ export default function HomePage() {
               {t('common.seeAll')} <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-            {featuredProducts.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+              {featuredProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -92,18 +121,24 @@ export default function HomePage() {
             <p className="text-gray-500">{t('home.categories.subtitle')}</p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-            {CATEGORIES.map((c, i) => (
-              <Link key={i} href={`/products?cat=${c.slug}`}>
-                <div className="group relative overflow-hidden rounded-2xl cursor-pointer h-48 shadow-sm hover:shadow-xl transition-all duration-300">
-                  <div className={`absolute inset-0 bg-gradient-to-br ${c.color} opacity-90 group-hover:opacity-100 transition-opacity`} />
-                  <div className="relative z-10 h-full flex flex-col items-center justify-center text-white p-6">
-                    <span className="text-5xl mb-3 group-hover:scale-110 transition-transform duration-300">{c.emoji}</span>
-                    <h3 className="font-bold text-lg">{c.name}</h3>
-                    <p className="text-white/70 text-sm mt-1">{c.count} produits</p>
+            {categories.slice(0, 8).map((c, i) => {
+              const colors = [
+                'from-blue-500 to-indigo-600', 'from-pink-500 to-rose-600',
+                'from-violet-500 to-purple-600', 'from-amber-500 to-orange-600',
+                'from-teal-500 to-cyan-600', 'from-red-500 to-pink-600',
+                'from-emerald-500 to-green-600', 'from-sky-500 to-blue-600'
+              ];
+              return (
+                <Link key={i} href={`/products?cat=${c.slug}`}>
+                  <div className="group relative overflow-hidden rounded-2xl cursor-pointer h-48 shadow-sm hover:shadow-xl transition-all duration-300">
+                    <div className={`absolute inset-0 bg-gradient-to-br ${colors[i % colors.length]} opacity-90 group-hover:opacity-100 transition-opacity`} />
+                    <div className="relative z-10 h-full flex flex-col items-center justify-center text-white p-6">
+                      <h3 className="font-bold text-lg text-center">{c.name}</h3>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -112,16 +147,20 @@ export default function HomePage() {
       <section className="py-16 bg-gray-50/50">
         <div className="container-shop">
           <div className="flex items-center justify-between mb-10">
-            <h2 className="text-3xl font-bold text-gray-900">Tous nos produits</h2>
+            <h2 className="text-3xl font-bold text-gray-900">{t('common.products')}</h2>
             <Link href="/products" className="text-orange-500 font-medium text-sm hover:text-orange-600 flex items-center gap-1">
-              Voir tout <ArrowRight className="w-4 h-4" />
+              {t('common.seeAll')} <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {PRODUCTS.slice(0, 8).map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+              {allProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

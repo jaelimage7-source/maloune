@@ -1,0 +1,118 @@
+{
+  "common": {
+    "siteName": "Maloune",
+    "home": "Inicio",
+    "products": "Productos",
+    "cart": "Carrito",
+    "account": "Mi cuenta",
+    "login": "Iniciar sesión",
+    "register": "Registrarse",
+    "logout": "Cerrar sesión",
+    "search": "Buscar...",
+    "addToCart": "Añadir al carrito",
+    "buyNow": "Comprar ahora",
+    "viewProduct": "Ver producto",
+    "freeShipping": "Envío gratuito",
+    "inStock": "En stock",
+    "outOfStock": "Agotado",
+    "quantity": "Cantidad",
+    "price": "Precio",
+    "total": "Total",
+    "subtotal": "Subtotal",
+    "shipping": "Envío",
+    "tax": "IVA",
+    "discount": "Descuento",
+    "checkout": "Realizar pedido",
+    "continueShopping": "Seguir comprando",
+    "orderConfirmed": "Pedido confirmado",
+    "trackOrder": "Seguir mi pedido",
+    "contactUs": "Contáctenos",
+    "loading": "Cargando...",
+    "error": "Se ha producido un error",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "seeAll": "Ver todo",
+    "noResults": "Sin resultados"
+  },
+  "home": {
+    "hero": {
+      "title": "Descubre nuestra selección",
+      "subtitle": "Los mejores productos, entregados en tu puerta",
+      "cta": "Explorar la tienda"
+    },
+    "featured": {
+      "title": "Productos populares",
+      "subtitle": "Nuestros más vendidos del momento"
+    },
+    "categories": {
+      "title": "Nuestras categorías",
+      "subtitle": "Encuentra lo que buscas"
+    },
+    "newsletter": {
+      "title": "Mantente informado",
+      "subtitle": "Suscríbete para recibir ofertas exclusivas",
+      "placeholder": "Tu email",
+      "cta": "Suscribirse"
+    },
+    "guarantees": {
+      "shipping": "Envío rápido",
+      "shippingDesc": "Enviado en 2-5 días",
+      "secure": "Pago seguro",
+      "secureDesc": "Stripe y PayPal",
+      "support": "Soporte 24/7",
+      "supportDesc": "Estamos aquí para ti",
+      "returns": "Devoluciones fáciles",
+      "returnsDesc": "30 días para cambiar de opinión"
+    }
+  },
+  "product": {
+    "description": "Descripción",
+    "reviews": "Opiniones de clientes",
+    "noReviews": "Aún no hay opiniones",
+    "writeReview": "Escribir una opinión",
+    "relatedProducts": "Productos similares",
+    "deliveryTime": "Plazo de entrega",
+    "days": "días"
+  },
+  "cart": {
+    "title": "Mi carrito",
+    "empty": "Tu carrito está vacío",
+    "emptyDesc": "Descubre nuestros productos y añade tus favoritos",
+    "remove": "Eliminar",
+    "promoCode": "Código promocional",
+    "apply": "Aplicar",
+    "summary": "Resumen del pedido"
+  },
+  "checkout": {
+    "title": "Pago",
+    "shipping": "Dirección de envío",
+    "payment": "Método de pago",
+    "review": "Verificación",
+    "placeOrder": "Confirmar pedido",
+    "processing": "Procesando..."
+  },
+  "account": {
+    "title": "Mi cuenta",
+    "orders": "Mis pedidos",
+    "addresses": "Mis direcciones",
+    "settings": "Configuración",
+    "noOrders": "Aún no hay pedidos"
+  },
+  "footer": {
+    "about": "Acerca de",
+    "aboutText": "Maloune — Tu tienda online de confianza. Productos de tendencia entregados en tu puerta.",
+    "links": "Enlaces útiles",
+    "legal": "Aviso legal",
+    "privacy": "Política de privacidad",
+    "terms": "Términos y condiciones",
+    "refund": "Política de reembolso",
+    "copyright": "© {year} Maloune. Todos los derechos reservados."
+  }
+}
