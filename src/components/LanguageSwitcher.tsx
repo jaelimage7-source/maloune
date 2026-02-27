@@ -3,7 +3,6 @@
 import { useLocale } from 'next-intl';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { useState, useRef, useEffect } from 'react';
-import { Globe } from 'lucide-react';
 
 const LANGUAGES = [
   { code: 'fr', flag: '🇫🇷', name: 'Français' },
@@ -51,17 +50,18 @@ export default function LanguageSwitcher() {
       <button onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors text-sm">
         <span className="text-lg">{current.flag}</span>
-        <span className="hidden sm:inline text-gray-700">{current.code.toUpperCase()}</span>
+        <span className="hidden sm:inline text-gray-700 font-medium">{current.code.toUpperCase()}</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 w-48 max-h-80 overflow-y-auto">
+        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 w-52 max-h-80 overflow-y-auto">
           {LANGUAGES.map(lang => (
             <button key={lang.code} onClick={() => switchLocale(lang.code)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-orange-50 transition-colors
                 ${locale === lang.code ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-700'}`}>
               <span className="text-lg">{lang.flag}</span>
               <span>{lang.name}</span>
+              {locale === lang.code && <span className="ml-auto text-orange-500">✓</span>}
             </button>
           ))}
         </div>

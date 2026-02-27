@@ -26,7 +26,7 @@ const CATEGORY_FR: Record<string, string> = {
   'pet drinking tools': 'Abreuvoirs', 'pet chew toys': 'Jouets à mâcher', 'pet bowls': 'Gamelles',
   'pet houses & cages': 'Niches & Cages', 'pet snacks': 'Friandises animaux',
   'pet shower products': 'Toilettage animaux', 'pet hair removers & combs': 'Brosses animaux',
-  'pet leashes': 'Laisses', 'general': 'Général',
+  'pet leashes': 'Laisses', 'general': 'Général', 'led': 'LED', 'lamp': 'Lampes', 'light': 'Éclairage',
 };
 
 function translateCategory(name: string): string {
@@ -34,38 +34,58 @@ function translateCategory(name: string): string {
   return CATEGORY_FR[lower] || name;
 }
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
   try {
     const { searchParams } = new URL(request.url);
     const locale = searchParams.get('locale') || 'fr';
-    const cat = searchParams.get('cat') || '';
+    const slug = params.slug;
 
-    const where: any = { isActive: true };
-    if (cat) {
-      where.category = { slug: cat };
-    }
-
-    const products = await prisma.product.findMany({
-      where,
+    const product = await prisma.product.findUnique({
+      where: { slug },
       include: {
         translations: { where: { locale: locale as any } },
         category: {
           include: { translations: { where: { locale: locale as any } } }
         }
-      },
-      orderBy: { createdAt: 'desc' }
+      }
     });
 
-    const categories = await prisma.category.findMany({
-      where: { isActive: true },
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    // Get related products from same category
+    const related = product.categoryId ? await prisma.product.findMany({
+      where: { categoryId: product.categoryId, isActive: true, id: { not: product.id } },
       include: {
         translations: { where: { locale: locale as any } },
-        _count: { select: { products: true } }
+        category: { include: { translations: { where: { locale: locale as any } } } }
       },
-      orderBy: { products: { _count: 'desc' } }
-    });
+      take: 4,
+    }) : [];
 
-    const formatted = products.map(p => ({
+    const catName = product.category?.translations[0]?.name || product.category?.slug || '';
+
+    const formatted = {
+      id: product.id,
+      slug: product.slug,
+      name: product.translations[0]?.name || 'Produit',
+      description: product.translations[0]?.description || '',
+      price: Number(product.sellPrice),
+      comparePrice: product.compareAtPrice ? Number(product.compareAtPrice) : undefined,
+      image: product.mainImageUrl || '',
+      images: (product.images as string[]) || [],
+      category: translateCategory(catName),
+      categorySlug: product.category?.slug || '',
+      rating: 4.5,
+      reviewCount: Math.floor(Math.random() * 200) + 50,
+      inStock: true,
+    };
+
+    const formattedRelated = related.map(p => ({
       id: p.id,
       slug: p.slug,
       name: p.translations[0]?.name || 'Produit',
@@ -79,21 +99,11 @@ export async function GET(request: Request) {
       rating: 4.5,
       reviewCount: Math.floor(Math.random() * 200) + 50,
       inStock: true,
-      tag: undefined,
     }));
 
-    // Only return categories that have products, translated to French
-    const formattedCats = categories
-      .filter(c => c._count.products > 0)
-      .map(c => ({
-        name: translateCategory(c.translations[0]?.name || c.slug),
-        slug: c.slug,
-        count: c._count.products,
-      }));
-
-    return NextResponse.json({ products: formatted, categories: formattedCats });
+    return NextResponse.json({ product: formatted, related: formattedRelated });
   } catch (e: any) {
-    console.error('Products API Error:', e.message);
+    console.error('Product Detail API Error:', e.message);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

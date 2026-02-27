@@ -31,14 +31,20 @@ export default function ProductDetailPage() {
   const [added, setAdded] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/products?locale=${locale}`)
-      .then(r => r.json())
+    setLoading(true);
+    setNotFound(false);
+    setActiveImage(0);
+    setQuantity(1);
+
+    fetch(`/api/products/${slug}?locale=${locale}`)
+      .then(r => {
+        if (!r.ok) throw new Error('Not found');
+        return r.json();
+      })
       .then(data => {
-        const all: Product[] = data.products || [];
-        const found = all.find(p => p.slug === slug);
-        if (found) {
-          setProduct(found);
-          setRelated(all.filter(p => p.categorySlug === found.categorySlug && p.id !== found.id).slice(0, 4));
+        if (data.product) {
+          setProduct(data.product);
+          setRelated(data.related || []);
         } else {
           setNotFound(true);
         }
@@ -71,7 +77,6 @@ export default function ProductDetailPage() {
     ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
     : 0;
 
-  const isUrl = product.image?.startsWith('http');
   const allImages = product.images?.length > 0 ? product.images : [product.image];
 
   const handleAddToCart = () => {
@@ -118,13 +123,10 @@ export default function ProductDetailPage() {
             {allImages.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {allImages.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveImage(i)}
+                  <button key={i} onClick={() => setActiveImage(i)}
                     className={`w-20 h-20 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden transition-all ${
                       activeImage === i ? 'ring-2 ring-orange-500 bg-orange-50' : 'bg-gray-50 hover:bg-orange-50'
-                    }`}
-                  >
+                    }`}>
                     {img?.startsWith('http') ? (
                       <img src={img} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -180,12 +182,8 @@ export default function ProductDetailPage() {
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
-
-              <button
-                onClick={handleAddToCart}
-                disabled={!product.inStock}
-                className={`flex-1 btn-primary py-3.5 flex items-center justify-center gap-2 ${added ? 'bg-green-500 hover:bg-green-600' : ''}`}
-              >
+              <button onClick={handleAddToCart} disabled={!product.inStock}
+                className={`flex-1 btn-primary py-3.5 flex items-center justify-center gap-2 ${added ? 'bg-green-500 hover:bg-green-600' : ''}`}>
                 {added ? (
                   <><Check className="w-5 h-5" /> {t('common.addToCart')} ✓</>
                 ) : (

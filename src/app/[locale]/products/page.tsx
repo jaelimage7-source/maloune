@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/products/ProductCard';
-import { SlidersHorizontal, X, Loader2 } from 'lucide-react';
+import { SlidersHorizontal, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Product {
   id: string; slug: string; name: string; description: string;
@@ -12,7 +12,7 @@ interface Product {
   category: string; categorySlug: string; rating: number; reviewCount: number;
   inStock: boolean; tag?: string;
 }
-interface Category { name: string; slug: string; }
+interface Category { name: string; slug: string; count: number; }
 
 export default function ProductsPage() {
   const t = useTranslations();
@@ -27,6 +27,7 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState('popular');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   useEffect(() => {
     fetch(`/api/products?locale=${locale}`)
@@ -52,6 +53,11 @@ export default function ProductsPage() {
     return result;
   })();
 
+  // Show max 8 categories, then "Voir plus"
+  const MAX_VISIBLE_CATS = 8;
+  const visibleCategories = showAllCategories ? categories : categories.slice(0, MAX_VISIBLE_CATS);
+  const hasMoreCategories = categories.length > MAX_VISIBLE_CATS;
+
   if (loading) return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center">
       <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
@@ -63,37 +69,52 @@ export default function ProductsPage() {
       <div className="bg-white border-b border-gray-100">
         <div className="container-shop py-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('common.products')}</h1>
-          <p className="text-gray-500">{filtered.length} produits disponibles</p>
+          <p className="text-gray-500">{filtered.length} {t('common.products').toLowerCase()} {selectedCategory ? `— ${visibleCategories.find(c => c.slug === selectedCategory)?.name || selectedCategory}` : ''}</p>
         </div>
       </div>
 
       <div className="container-shop py-8">
-        <div className="flex flex-wrap gap-2 mb-6">
-          <button onClick={() => setSelectedCategory('')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${!selectedCategory ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-orange-50 border border-gray-200'}`}>
-            Tous
-          </button>
-          {categories.map(c => (
-            <button key={c.slug} onClick={() => setSelectedCategory(c.slug === selectedCategory ? '' : c.slug)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === c.slug ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-orange-50 border border-gray-200'}`}>
-              {c.name}
+        {/* Category pills */}
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setSelectedCategory('')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${!selectedCategory ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-orange-50 border border-gray-200'}`}>
+              {t('common.seeAll')}
             </button>
-          ))}
+            {visibleCategories.map(c => (
+              <button key={c.slug} onClick={() => setSelectedCategory(c.slug === selectedCategory ? '' : c.slug)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === c.slug ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-orange-50 border border-gray-200'}`}>
+                {c.name} <span className="text-xs opacity-60">({c.count})</span>
+              </button>
+            ))}
+            {hasMoreCategories && (
+              <button onClick={() => setShowAllCategories(!showAllCategories)}
+                className="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 flex items-center gap-1 transition-all">
+                {showAllCategories ? (
+                  <><ChevronUp className="w-3 h-3" /> Moins</>
+                ) : (
+                  <><ChevronDown className="w-3 h-3" /> +{categories.length - MAX_VISIBLE_CATS}</>
+                )}
+              </button>
+            )}
+          </div>
         </div>
 
+        {/* Sort & Filter bar */}
         <div className="flex items-center justify-between mb-6">
           <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 text-sm text-gray-600 hover:text-orange-500 transition-colors">
-            <SlidersHorizontal className="w-4 h-4" /> Filtres
+            <SlidersHorizontal className="w-4 h-4" /> {t('common.search')}
           </button>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500">
-            <option value="popular">Plus populaires</option>
-            <option value="price-asc">Prix croissant</option>
-            <option value="price-desc">Prix décroissant</option>
-            <option value="rating">Meilleures notes</option>
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white">
+            <option value="popular">{t('home.featured.subtitle')}</option>
+            <option value="price-asc">{t('common.price')} ↑</option>
+            <option value="price-desc">{t('common.price')} ↓</option>
+            <option value="rating">⭐ {t('product.reviews')}</option>
           </select>
         </div>
 
+        {/* Filter panel */}
         {showFilters && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
@@ -101,12 +122,13 @@ export default function ProductsPage() {
               <button onClick={() => setShowFilters(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Prix: {priceRange[0]}€ - {priceRange[1]}€</label>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">{t('common.price')}: {priceRange[0]}€ - {priceRange[1]}€</label>
               <input type="range" min={0} max={500} value={priceRange[1]} onChange={e => setPriceRange([priceRange[0], Number(e.target.value)])} className="w-full accent-orange-500" />
             </div>
           </div>
         )}
 
+        {/* Products grid */}
         {filtered.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {filtered.map(p => <ProductCard key={p.id} product={p} />)}
@@ -116,7 +138,7 @@ export default function ProductsPage() {
             <p className="text-6xl mb-4">🔍</p>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('common.noResults')}</h3>
             <p className="text-gray-500 mb-6">Essayez de modifier vos filtres</p>
-            <button onClick={() => { setSelectedCategory(''); setPriceRange([0, 500]); }} className="btn-primary">Réinitialiser</button>
+            <button onClick={() => { setSelectedCategory(''); setPriceRange([0, 500]); }} className="btn-primary">{t('common.retry')}</button>
           </div>
         )}
       </div>
