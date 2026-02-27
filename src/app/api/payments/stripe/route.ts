@@ -2,29 +2,15 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const Stripe = (await import('stripe')).default;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-12-18.acacia' as any });
-    
-    const { amount, currency = 'eur', email, metadata } = await request.json();
-
-    if (!amount || amount < 50) {
-      return NextResponse.json({ error: 'Montant minimum: 0.50€' }, { status: 400 });
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 });
     }
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount),
-      currency,
-      receipt_email: email,
-      metadata: metadata || {},
-      automatic_payment_methods: { enabled: true },
-    });
-
-    return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-    });
-  } catch (error: any) {
-    console.error('Stripe error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const Stripe = (await import('stripe')).default;
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const { amount, currency = 'eur' } = await request.json();
+    const paymentIntent = await stripe.paymentIntents.create({ amount: Math.round(amount * 100), currency });
+    return NextResponse.json({ clientSecret: paymentIntent.client_secret });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
