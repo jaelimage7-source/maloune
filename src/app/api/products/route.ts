@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Mapping English category names → French
 const CATEGORY_FR: Record<string, string> = {
   'chandeliers': 'Lustres', 'solar lamps': 'Lampes solaires', 'downlights': 'Spots encastrés',
   'necklace & pendants': 'Colliers & Pendentifs', 'night lights': 'Veilleuses', 'furniture': 'Mobilier',
@@ -27,11 +26,87 @@ const CATEGORY_FR: Record<string, string> = {
   'pet houses & cages': 'Niches & Cages', 'pet snacks': 'Friandises animaux',
   'pet shower products': 'Toilettage animaux', 'pet hair removers & combs': 'Brosses animaux',
   'pet leashes': 'Laisses', 'general': 'Général',
+  'print-on-demand': 'Print on Demand',
 };
 
 function translateCategory(name: string): string {
   const lower = name.toLowerCase().trim();
   return CATEGORY_FR[lower] || name;
+}
+
+// Fetch Printful products and format them like CJ products
+async function fetchPrintfulProducts(): Promise<any[]> {
+  try {
+    const apiKey = process.env.PRINTFUL_API_KEY;
+    if (!apiKey) return [];
+
+    const res = await fetch('https://api.printful.com/store/products', {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      next: { revalidate: 300 },
+    });
+
+    if (!res.ok) return [];
+    const data = await res.json();
+    const products = data.result || [];
+
+    // Fetch details for each product
+    const detailed = await Promise.all(
+      products
+        .filter((p: any) => !p.is_ignored)
+        .map(async (p: any) => {
+          try {
+            const detailRes = await fetch(`https://api.printful.com/store/products/${p.id}`, {
+              headers: { 'Authorization': `Bearer ${apiKey}` },
+              next: { revalidate: 300 },
+            });
+            if (!detailRes.ok) return null;
+            const detailData = await detailRes.json();
+            return detailData.result;
+          } catch { return null; }
+        })
+    );
+
+    return detailed
+      .filter(Boolean)
+      .map((detail: any) => {
+        const { sync_product, sync_variants } = detail;
+        const prices = sync_variants.map((v: any) => parseFloat(v.retail_price));
+        const minPrice = Math.min(...prices);
+        const images = sync_variants
+          .flatMap((v: any) => v.files?.filter((f: any) => f.type === 'preview').map((f: any) => f.preview_url) || [])
+          .filter((url: string, i: number, arr: string[]) => arr.indexOf(url) === i);
+        const thumbnail = sync_product.thumbnail_url || images[0] || '';
+
+        return {
+          id: `printful-${sync_product.id}`,
+          slug: `printful-${sync_product.id}`,
+          name: sync_product.name,
+          description: `${sync_product.name} - Print on Demand par MALOUNE`,
+          price: minPrice,
+          comparePrice: undefined,
+          image: thumbnail,
+          images: images.length > 0 ? images : [thumbnail],
+          category: 'Print on Demand',
+          categorySlug: 'print-on-demand',
+          rating: 4.8,
+          reviewCount: Math.floor(Math.random() * 100) + 20,
+          inStock: true,
+          tag: 'NOUVEAU',
+          isPrintful: true,
+          variants: sync_variants.map((v: any) => ({
+            id: v.id,
+            variantId: v.variant_id,
+            name: v.name,
+            price: parseFloat(v.retail_price),
+            sku: v.sku,
+            image: v.files?.find((f: any) => f.type === 'preview')?.preview_url || thumbnail,
+          })),
+        };
+      });
+  } catch (error) {
+    console.error('Printful fetch error:', error);
+    return [];
+  }
 }
 
 export async function GET(request: Request) {
@@ -41,31 +116,36 @@ export async function GET(request: Request) {
     const cat = searchParams.get('cat') || '';
 
     const where: any = { isActive: true };
-    if (cat) {
+    if (cat && cat !== 'print-on-demand') {
       where.category = { slug: cat };
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      include: {
-        translations: { where: { locale: locale as any } },
-        category: {
-          include: { translations: { where: { locale: locale as any } } }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    // Fetch CJ/Prisma products + Printful products in parallel
+    const [prismaProducts, prismaCategories, printfulProducts] = await Promise.all([
+      cat === 'print-on-demand'
+        ? Promise.resolve([])
+        : prisma.product.findMany({
+            where,
+            include: {
+              translations: { where: { locale: locale as any } },
+              category: {
+                include: { translations: { where: { locale: locale as any } } }
+              }
+            },
+            orderBy: { createdAt: 'desc' }
+          }),
+      prisma.category.findMany({
+        where: { isActive: true },
+        include: {
+          translations: { where: { locale: locale as any } },
+          _count: { select: { products: true } }
+        },
+        orderBy: { products: { _count: 'desc' } }
+      }),
+      fetchPrintfulProducts(),
+    ]);
 
-    const categories = await prisma.category.findMany({
-      where: { isActive: true },
-      include: {
-        translations: { where: { locale: locale as any } },
-        _count: { select: { products: true } }
-      },
-      orderBy: { products: { _count: 'desc' } }
-    });
-
-    const formatted = products.map(p => ({
+    const formattedPrisma = prismaProducts.map((p: any) => ({
       id: p.id,
       slug: p.slug,
       name: p.translations[0]?.name || 'Produit',
@@ -82,16 +162,34 @@ export async function GET(request: Request) {
       tag: undefined,
     }));
 
-    // Only return categories that have products, translated to French
-    const formattedCats = categories
-      .filter(c => c._count.products > 0)
-      .map(c => ({
+    // Merge: Printful products first (NOUVEAU), then CJ products
+    let allProducts;
+    if (cat === 'print-on-demand') {
+      allProducts = printfulProducts;
+    } else if (cat) {
+      allProducts = formattedPrisma;
+    } else {
+      allProducts = [...printfulProducts, ...formattedPrisma];
+    }
+
+    // Categories: add Print on Demand category if Printful has products
+    const formattedCats = prismaCategories
+      .filter((c: any) => c._count.products > 0)
+      .map((c: any) => ({
         name: translateCategory(c.translations[0]?.name || c.slug),
         slug: c.slug,
         count: c._count.products,
       }));
 
-    return NextResponse.json({ products: formatted, categories: formattedCats });
+    if (printfulProducts.length > 0) {
+      formattedCats.unshift({
+        name: 'Print on Demand',
+        slug: 'print-on-demand',
+        count: printfulProducts.length,
+      });
+    }
+
+    return NextResponse.json({ products: allProducts, categories: formattedCats });
   } catch (e: any) {
     console.error('Products API Error:', e.message);
     return NextResponse.json({ error: e.message }, { status: 500 });
