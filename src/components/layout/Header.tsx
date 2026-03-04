@@ -6,6 +6,7 @@ import { Link, usePathname } from '@/i18n/routing';
 import { useCartStore } from '@/lib/store';
 import { ShoppingBag, Menu, X } from 'lucide-react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import Image from 'next/image';
 
 export default function Header() {
   const t = useTranslations('common');
@@ -23,10 +24,15 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
       <div className="container-shop">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-extrabold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
-              Maloune
-            </span>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/images/logo-header.png"
+              alt="MALOUNE Boutique"
+              width={180}
+              height={68}
+              className="h-10 w-auto"
+              priority
+            />
           </Link>
 
           <nav className="hidden md:flex items-center gap-8">
