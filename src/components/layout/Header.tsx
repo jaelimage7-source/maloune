@@ -30,7 +30,7 @@ export default function Header() {
               alt="MALOUNE Boutique"
               width={180}
               height={68}
-              className="h-10 w-auto"
+              className="h-14 w-auto"
               priority
             />
           </Link>

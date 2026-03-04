@@ -19,7 +19,7 @@ export default function Footer() {
                 alt="MALOUNE Boutique"
                 width={200}
                 height={75}
-                className="h-12 w-auto"
+                className="h-16 w-auto"
               />
             </Link>
             <p className="text-sm leading-relaxed mb-4">{t('aboutText')}</p>
