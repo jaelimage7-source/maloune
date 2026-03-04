@@ -1,48 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getAllProductsWithDetails, getProduct, formatProductForStore } from '@/lib/printful';
+import { NextResponse } from 'next/server';
 
-let cachedProducts: any[] | null = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 5 * 60 * 1000;
+export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const productId = searchParams.get('id');
+    const apiKey = process.env.PRINTFUL_API_KEY;
 
-    if (productId) {
-      const detail = await getProduct(parseInt(productId));
-      const formatted = formatProductForStore(detail);
-      return NextResponse.json({ success: true, product: formatted });
+    if (!apiKey) {
+      return NextResponse.json({
+        success: true,
+        message: 'Printful API konekte men PRINTFUL_API_KEY pa konfigire nan Vercel.',
+        products: [],
+        setup: 'Ale sou Vercel > Settings > Environment Variables > ajoute PRINTFUL_API_KEY',
+      });
     }
 
-    const now = Date.now();
-    if (!cachedProducts || now - cacheTimestamp > CACHE_DURATION) {
-      const allProducts = await getAllProductsWithDetails();
-      cachedProducts = allProducts.map(formatProductForStore);
-      cacheTimestamp = now;
-    }
+    const { getAllProductsFormatted } = await import('@/lib/printful');
+    const products = await getAllProductsFormatted();
 
     return NextResponse.json({
       success: true,
-      products: cachedProducts,
-      count: cachedProducts.length,
+      products,
+      count: products.length,
     });
-  } catch (error: any) {
-    console.error('Printful products error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
-}
-
-export async function POST() {
-  try {
-    cachedProducts = null;
-    cacheTimestamp = 0;
-    const allProducts = await getAllProductsWithDetails();
-    cachedProducts = allProducts.map(formatProductForStore);
-    cacheTimestamp = Date.now();
-    return NextResponse.json({ success: true, message: 'Cache refreshed', count: cachedProducts.length });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
