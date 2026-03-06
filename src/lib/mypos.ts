@@ -8,13 +8,15 @@ const MYPOS_CHECKOUT_URL_LIVE = 'https://mypos.eu/vmp/checkout';
 
 const CHECKOUT_URL = process.env.MYPOS_LIVE === 'true' ? MYPOS_CHECKOUT_URL_LIVE : MYPOS_CHECKOUT_URL;
 
-// Fix: handle multiple escape formats for the private key
 function getPrivateKey(): string {
+  // Try base64 encoded key first (most reliable for env vars)
+  const b64Key = process.env.MYPOS_PRIVATE_KEY_B64;
+  if (b64Key) {
+    return Buffer.from(b64Key, 'base64').toString('utf-8');
+  }
+  // Fallback to direct key with newline replacement
   let pk = process.env.MYPOS_PRIVATE_KEY || '';
-  // Replace literal \n with actual newlines
   pk = pk.replace(/\\n/g, '\n');
-  // Also handle double-escaped
-  pk = pk.replace(/\\\\n/g, '\n');
   return pk;
 }
 
@@ -38,14 +40,12 @@ export interface CheckoutParams {
 
 function generateSignature(data: Record<string, string>): string {
   const privateKey = getPrivateKey();
-  
-  // Concatenate all values with dash (order matters!)
   const concatenated = Object.values(data).join('-');
-  
+
   const sign = crypto.createSign('SHA256');
   sign.update(concatenated);
   sign.end();
-  
+
   return sign.sign(privateKey, 'base64');
 }
 
@@ -63,7 +63,6 @@ export function createCheckoutForm(params: CheckoutParams): { url: string; field
 
   const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  // Build form data - order matters for signature!
   const data: Record<string, string> = {
     IPCmethod: 'IPCPurchase',
     IPCVersion: '1.4',
@@ -83,7 +82,6 @@ export function createCheckoutForm(params: CheckoutParams): { url: string; field
     CartItems: cartItems.length.toString(),
   };
 
-  // Add cart items
   cartItems.forEach((item, index) => {
     const idx = index + 1;
     data[`Article_${idx}`] = item.name;
@@ -93,12 +91,10 @@ export function createCheckoutForm(params: CheckoutParams): { url: string; field
     data[`Currency_${idx}`] = currency;
   });
 
-  // Expiration
   const expDate = new Date();
   expDate.setDate(expDate.getDate() + expirationDays);
   data['Expiration'] = expDate.toISOString().replace('T', ' ').substring(0, 19);
 
-  // Generate signature
   const privateKey = getPrivateKey();
   if (privateKey && privateKey.includes('PRIVATE KEY')) {
     data['Signature'] = generateSignature(data);
@@ -116,7 +112,6 @@ export function verifyNotification(postData: Record<string, string>, publicCert:
     delete dataWithoutSignature['Signature'];
 
     const concatenated = Object.values(dataWithoutSignature).join('-');
-
     const verify = crypto.createVerify('SHA256');
     verify.update(concatenated);
     verify.end();
