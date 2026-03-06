@@ -1,37 +1,45 @@
 import { NextResponse } from 'next/server';
+import { createCheckoutForm } from '@/lib/mypos';
 
 export async function POST(request: Request) {
   try {
-    if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 });
+    const { items, locale = 'fr' } = await request.json();
+    const origin = request.headers.get('origin') || 'https://maloune.fr';
+
+    if (!items || !items.length) {
+      return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
 
-    const Stripe = (await import('stripe')).default;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    // Generate unique order ID
+    const orderId = `MAL-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-    const { items, locale = 'fr' } = await request.json();
+    // Build cart items
+    const cartItems = items.map((item: { name: string; price: number; quantity: number }) => ({
+      name: item.name.substring(0, 100),
+      quantity: item.quantity || 1,
+      price: item.price,
+    }));
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      line_items: items.map((item: any) => ({
-        price_data: {
-          currency: 'eur',
-          product_data: { name: item.name, images: item.image ? [item.image] : [] },
-          unit_amount: Math.round(item.price * 100),
-        },
-        quantity: item.quantity,
-      })),
-      shipping_address_collection: {
-        allowed_countries: ['FR','BE','CH','CA','US','GB','DE','IT','ES','NL','PT','GP','MQ','GF','RE','HT'],
-      },
-      success_url: `${request.headers.get('origin')}/${locale}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.headers.get('origin')}/${locale}/cart`,
-      metadata: { locale },
+    // Create myPOS checkout form data
+    const checkout = createCheckoutForm({
+      orderId,
+      amount: cartItems.reduce((s: number, i: { price: number; quantity: number }) => s + i.price * i.quantity, 0),
+      currency: 'EUR',
+      cartItems,
+      urlOk: `${origin}/${locale}/checkout/success?order=${orderId}`,
+      urlCancel: `${origin}/${locale}/cart`,
+      urlNotify: `${origin}/api/mypos/webhook`,
+      expirationDays: 1,
     });
 
-    return NextResponse.json({ url: session.url });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({
+      url: checkout.url,
+      fields: checkout.fields,
+      orderId,
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    console.error('Checkout error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
