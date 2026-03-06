@@ -6,10 +6,17 @@ const MYPOS_KEY_INDEX = process.env.MYPOS_KEY_INDEX || '1';
 const MYPOS_CHECKOUT_URL = 'https://mypos.eu/vmp/checkout-test';
 const MYPOS_CHECKOUT_URL_LIVE = 'https://mypos.eu/vmp/checkout';
 
-// Use live or test
 const CHECKOUT_URL = process.env.MYPOS_LIVE === 'true' ? MYPOS_CHECKOUT_URL_LIVE : MYPOS_CHECKOUT_URL;
 
-const PRIVATE_KEY = (process.env.MYPOS_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+// Fix: handle multiple escape formats for the private key
+function getPrivateKey(): string {
+  let pk = process.env.MYPOS_PRIVATE_KEY || '';
+  // Replace literal \n with actual newlines
+  pk = pk.replace(/\\n/g, '\n');
+  // Also handle double-escaped
+  pk = pk.replace(/\\\\n/g, '\n');
+  return pk;
+}
 
 export interface CartItem {
   name: string;
@@ -29,8 +36,10 @@ export interface CheckoutParams {
   expirationDays?: number;
 }
 
-function generateSignature(data: Record<string, string>, privateKey: string): string {
-  // Concatenate all values with dash
+function generateSignature(data: Record<string, string>): string {
+  const privateKey = getPrivateKey();
+  
+  // Concatenate all values with dash (order matters!)
   const concatenated = Object.values(data).join('-');
   
   const sign = crypto.createSign('SHA256');
@@ -52,10 +61,9 @@ export function createCheckoutForm(params: CheckoutParams): { url: string; field
     expirationDays = 1,
   } = params;
 
-  // Calculate total
   const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  // Build form data (order matters for signature!)
+  // Build form data - order matters for signature!
   const data: Record<string, string> = {
     IPCmethod: 'IPCPurchase',
     IPCVersion: '1.4',
@@ -91,8 +99,9 @@ export function createCheckoutForm(params: CheckoutParams): { url: string; field
   data['Expiration'] = expDate.toISOString().replace('T', ' ').substring(0, 19);
 
   // Generate signature
-  if (PRIVATE_KEY) {
-    data['Signature'] = generateSignature(data, PRIVATE_KEY);
+  const privateKey = getPrivateKey();
+  if (privateKey && privateKey.includes('PRIVATE KEY')) {
+    data['Signature'] = generateSignature(data);
   }
 
   return { url: CHECKOUT_URL, fields: data };
