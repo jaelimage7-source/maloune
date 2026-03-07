@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import crypto from 'crypto';
 
 function getPrivateKey(): string {
   const b64Key = process.env.MYPOS_PRIVATE_KEY_B64;
@@ -9,28 +8,6 @@ function getPrivateKey(): string {
   let pk = process.env.MYPOS_PRIVATE_KEY || '';
   pk = pk.replace(/\\n/g, '\n');
   return pk;
-}
-
-// Exact same signing as official myPOS JS SDK (Helper.js createSignature)
-function createSignature(postData: Record<string, string>): string {
-  // Clean key exactly like SDK does
-  const key = getPrivateKey().trim().split('\n').map(x => x.trim()).join('\n');
-
-  // Decode URI components like SDK does
-  const values = Object.values(postData).map(v => decodeURIComponent(String(v)));
-  
-  // Join with dash
-  const payload = values.join('-');
-  
-  // Base64 encode
-  const concData = Buffer.from(payload).toString('base64');
-  
-  // Sign with SHA256
-  const sign = crypto.createSign('SHA256');
-  sign.write(concData);
-  sign.end();
-  
-  return sign.sign(key, 'base64');
 }
 
 export async function POST(request: NextRequest) {
@@ -55,74 +32,39 @@ export async function POST(request: NextRequest) {
       return new Response('No items', { status: 400 });
     }
 
-    const SID = process.env.MYPOS_SID || '1306645';
-    const WALLET = process.env.MYPOS_WALLET || '40016394476';
-    const KEY_INDEX = process.env.MYPOS_KEY_INDEX || '1';
-    const isSandbox = process.env.MYPOS_LIVE !== 'true';
-    const API_URL = isSandbox 
-      ? 'https://www.mypos.com/vmp/checkout-test' 
-      : 'https://www.mypos.com/vmp/checkout';
-
     const orderId = `MAL-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const privateKey = getPrivateKey();
+    const isSandbox = process.env.MYPOS_LIVE !== 'true';
 
-    const cartItems = items.map((item) => ({
-      name: item.name.substring(0, 100),
-      quantity: item.quantity || 1,
-      price: item.price,
-    }));
-
-    const totalAmount = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
-
-    // Build POST data - match PHP example order EXACTLY
-    const postData: Record<string, string> = {};
-    postData['IPCmethod'] = 'IPCPurchase';
-    postData['IPCVersion'] = '1.4';
-    postData['IPCLanguage'] = 'fr';
-    postData['SID'] = SID;
-    postData['WalletNumber'] = WALLET;
-    postData['Amount'] = totalAmount.toFixed(2);
-    postData['Currency'] = 'EUR';
-    postData['OrderID'] = orderId;
-    postData['URL_OK'] = `https://maloune.fr/${locale}/checkout/success?order=${orderId}`;
-    postData['URL_Cancel'] = `https://maloune.fr/${locale}/cart`;
-    postData['URL_Notify'] = `https://maloune.fr/api/mypos/webhook`;
-    postData['CardTokenRequest'] = '0';
-    postData['KeyIndex'] = KEY_INDEX;
-    postData['PaymentParametersRequired'] = '3';
-    postData['PaymentMethod'] = '1';
-    postData['Note'] = '';
-    postData['Source'] = 'MALOUNE';
-    postData['CartItems'] = String(cartItems.length);
-
-    cartItems.forEach((item, index) => {
-      const idx = index + 1;
-      postData[`Article_${idx}`] = item.name;
-      postData[`Quantity_${idx}`] = String(item.quantity);
-      postData[`Price_${idx}`] = item.price.toFixed(2);
-      postData[`Currency_${idx}`] = 'EUR';
-      postData[`Amount_${idx}`] = (item.price * item.quantity).toFixed(2);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const MyPOS = require('mypos-js');
+    
+    const mypos = new MyPOS(!isSandbox, {
+      keyIndex: parseInt(process.env.MYPOS_KEY_INDEX || '1'),
+      sid: process.env.MYPOS_SID || '1306645',
+      wallet: parseInt(process.env.MYPOS_WALLET || '40016394476'),
+      lang: 'fr',
+      privateKey: privateKey,
+    }, {
+      cancelUrl: `https://maloune.fr/${locale}/cart`,
+      notifyUrl: `https://maloune.fr/api/mypos/webhook`,
+      okUrl: `https://maloune.fr/${locale}/checkout/success?order=${orderId}`,
+    }, {
+      paymentParametersRequired: 3,
+      paymentMethod: 1,
+      cardTokenRequest: 0,
     });
 
-    // Sign (signature must be added LAST)
-    postData['Signature'] = createSignature(postData);
+    const cart = new mypos.Cart();
+    for (const item of items) {
+      cart.addItem(item.name.substring(0, 100), item.quantity || 1, Number(item.price.toFixed(2)));
+    }
 
-    // Return auto-submitting HTML form
-    const formFields = Object.entries(postData)
-      .map(([k, v]) => `<input type="hidden" name="${k}" value="${v.replace(/"/g, '&quot;')}">`)
-      .join('\n');
-
-    const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Redirection...</title>
-<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f5f5f5;}
-.loader{text-align:center;}.spinner{width:40px;height:40px;border:4px solid #ddd;border-top:4px solid #333;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px;}
-@keyframes spin{to{transform:rotate(360deg)}}</style></head>
-<body><div class="loader"><div class="spinner"></div><p>Redirection vers la page de paiement...</p></div>
-<form id="f" method="POST" action="${API_URL}">
-${formFields}
-<noscript><button type="submit">Continuer</button></noscript>
-</form>
-<script>document.getElementById('f').submit();</script>
-</body></html>`;
+    const html = await mypos.Purchase(null, cart, {
+      orderId: orderId,
+      currency: 'EUR',
+      note: '',
+    });
 
     return new Response(html, {
       status: 200,
