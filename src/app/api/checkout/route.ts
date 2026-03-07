@@ -10,6 +10,14 @@ function getPrivateKey(): string {
   return pk;
 }
 
+function getPublicCert(): string {
+  const b64Key = process.env.MYPOS_PUBLIC_CERT_B64;
+  if (b64Key) {
+    return Buffer.from(b64Key, 'base64').toString('utf-8');
+  }
+  return '';
+}
+
 export async function POST(request: NextRequest) {
   try {
     let items: { name: string; price: number; quantity: number }[];
@@ -34,6 +42,7 @@ export async function POST(request: NextRequest) {
 
     const orderId = `MAL-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const privateKey = getPrivateKey();
+    const publicCert = getPublicCert();
     const isSandbox = process.env.MYPOS_LIVE !== 'true';
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -45,6 +54,7 @@ export async function POST(request: NextRequest) {
       wallet: parseInt(process.env.MYPOS_WALLET || '40016394476'),
       lang: 'fr',
       privateKey: privateKey,
+      encryptPublicKey: publicCert || privateKey,
     }, {
       cancelUrl: `https://maloune.fr/${locale}/cart`,
       notifyUrl: `https://maloune.fr/api/mypos/webhook`,
