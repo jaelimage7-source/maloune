@@ -1,8 +1,18 @@
-import createMiddleware from 'next-intl/middleware';
-import { routing } from './i18n/routing';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export default createMiddleware(routing);
+export function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+  
+  // V-07: Add Secure flag to cookies
+  const cookieHeader = response.headers.get('set-cookie');
+  if (cookieHeader && !cookieHeader.includes('Secure')) {
+    response.headers.set('set-cookie', cookieHeader + '; Secure');
+  }
+  
+  return response;
+}
 
 export const config = {
-  matcher: ['/', '/(fr|en|ht|es|pt|de|it|nl|ar|ja|zh|ko|ru|pl|tr|sv)/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

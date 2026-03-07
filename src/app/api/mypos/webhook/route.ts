@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { encrypt, maskSensitive } from '@/lib/security/encryption';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,17 +11,29 @@ export async function POST(request: NextRequest) {
       data[key] = value.toString();
     });
 
-    console.log('=== myPOS Payment Notification ===');
-    console.log('OrderID:', data.OrderID);
-    console.log('Amount:', data.Amount);
-    console.log('Currency:', data.Currency);
-    console.log('Status:', data.Status || data.IPCmethod);
-    console.log('==================================');
+    // Encrypt sensitive payment data before logging
+    const sensitiveFields = ['OrderID', 'Amount', 'Currency', 'Status', 'IPCmethod'];
+    const logSafe: Record<string, string> = {};
+    for (const [key, val] of Object.entries(data)) {
+      if (key === 'Signature' || key.includes('Card') || key.includes('Token')) {
+        logSafe[key] = maskSensitive(val);
+      } else if (sensitiveFields.includes(key)) {
+        logSafe[key] = val; // OK to log these
+      }
+    }
 
-    // TODO: Update order status in database
+    console.log('=== myPOS Payment Notification ===');
+    console.log('OrderID:', logSafe.OrderID || 'N/A');
+    console.log('Amount:', logSafe.Amount || 'N/A');
+    console.log('Status:', logSafe.Status || logSafe.IPCmethod || 'N/A');
+
+    // Encrypt full notification data for secure storage
+    const encryptedData = encrypt(JSON.stringify(data));
+    console.log('Encrypted notification stored, length:', encryptedData.length);
+
+    // TODO: Store encryptedData in database
     // TODO: Trigger Printful order if applicable
 
-    // myPOS requires "OK" response
     return new NextResponse('OK', {
       status: 200,
       headers: { 'Content-Type': 'text/plain' },
