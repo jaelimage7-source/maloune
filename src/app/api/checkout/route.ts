@@ -11,14 +11,26 @@ function getPrivateKey(): string {
   return pk;
 }
 
-function signData(postData: Record<string, string>): string {
-  const privateKey = getPrivateKey();
-  const joined = Object.values(postData).join('-');
-  const b64 = Buffer.from(joined).toString('base64');
+// Exact same signing as official myPOS JS SDK (Helper.js createSignature)
+function createSignature(postData: Record<string, string>): string {
+  // Clean key exactly like SDK does
+  const key = getPrivateKey().trim().split('\n').map(x => x.trim()).join('\n');
+
+  // Decode URI components like SDK does
+  const values = Object.values(postData).map(v => decodeURIComponent(String(v)));
+  
+  // Join with dash
+  const payload = values.join('-');
+  
+  // Base64 encode
+  const concData = Buffer.from(payload).toString('base64');
+  
+  // Sign with SHA256
   const sign = crypto.createSign('SHA256');
-  sign.update(b64);
+  sign.write(concData);
   sign.end();
-  return sign.sign(privateKey, 'base64');
+  
+  return sign.sign(key, 'base64');
 }
 
 export async function POST(request: NextRequest) {
@@ -33,14 +45,11 @@ export async function POST(request: NextRequest) {
       items = json.items;
       locale = json.locale || 'fr';
     } else {
-      // Form POST from client
       const formData = await request.formData();
       const data = JSON.parse(formData.get('data') as string);
       items = data.items;
       locale = data.locale || 'fr';
     }
-
-    const origin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || 'https://maloune.fr';
 
     if (!items || !items.length) {
       return new Response('No items', { status: 400 });
@@ -64,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
 
-    // Build POST data in EXACT order from myPOS PHP example
+    // Build POST data - match PHP example order EXACTLY
     const postData: Record<string, string> = {};
     postData['IPCmethod'] = 'IPCPurchase';
     postData['IPCVersion'] = '1.4';
@@ -83,24 +92,24 @@ export async function POST(request: NextRequest) {
     postData['PaymentMethod'] = '1';
     postData['Note'] = '';
     postData['Source'] = 'MALOUNE';
-    postData['CartItems'] = cartItems.length.toString();
+    postData['CartItems'] = String(cartItems.length);
 
     cartItems.forEach((item, index) => {
       const idx = index + 1;
       postData[`Article_${idx}`] = item.name;
-      postData[`Quantity_${idx}`] = item.quantity.toString();
+      postData[`Quantity_${idx}`] = String(item.quantity);
       postData[`Price_${idx}`] = item.price.toFixed(2);
       postData[`Currency_${idx}`] = 'EUR';
       postData[`Amount_${idx}`] = (item.price * item.quantity).toFixed(2);
     });
 
-    // Sign
-    postData['Signature'] = signData(postData);
+    // Sign (signature must be added LAST)
+    postData['Signature'] = createSignature(postData);
 
-    // Return auto-submitting HTML form (same as PHP example)
+    // Return auto-submitting HTML form
     const formFields = Object.entries(postData)
       .map(([k, v]) => `<input type="hidden" name="${k}" value="${v.replace(/"/g, '&quot;')}">`)
-      .join('\n    ');
+      .join('\n');
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Redirection...</title>
