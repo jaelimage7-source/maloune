@@ -1,5 +1,5 @@
-import AdminGuard from '@/components/auth/AdminGuard';
 'use client';
+import AdminGuard from '@/components/auth/AdminGuard';
 import { useState } from 'react';
 import { Search, Package, Check, AlertCircle, Loader2, Plus, Eye, Upload, X, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
