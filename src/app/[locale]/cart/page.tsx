@@ -3,37 +3,22 @@
 import { useTranslations, useLocale } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { useCartStore } from '@/lib/store';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, CreditCard, ShieldCheck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
   const t = useTranslations();
   const locale = useLocale();
+  const router = useRouter();
   const items = useCartStore((s) => s.items);
   const removeItem = useCartStore((s) => s.removeItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const totalPrice = useCartStore((s) => s.totalPrice);
   const totalItems = useCartStore((s) => s.totalItems);
-  const [loading, setLoading] = useState(false);
 
   const handleCheckout = () => {
-    setLoading(true);
-    // Create and submit a form to the checkout API
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/api/checkout';
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = 'data';
-    input.value = JSON.stringify({
-      items: items.map(i => ({
-        name: i.name, price: i.price, quantity: i.quantity,
-      })),
-      locale,
-    });
-    form.appendChild(input);
-    document.body.appendChild(form);
-    form.submit();
+    // Go to checkout page to collect shipping address FIRST
+    router.push(`/${locale}/checkout`);
   };
 
   if (items.length === 0) {
@@ -109,11 +94,15 @@ export default function CartPage() {
                 <span>{totalPrice().toFixed(2)} €</span>
               </div>
             </div>
-            <button onClick={handleCheckout} disabled={loading}
-              className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2 disabled:opacity-50">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-              {loading ? t('checkout.processing') : t('common.checkout')}
+            <button onClick={handleCheckout}
+              className="btn-primary w-full py-4 text-base flex items-center justify-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              {t('common.checkout')}
             </button>
+            <div className="flex items-center justify-center gap-2 mt-3 text-xs text-gray-500">
+              <ShieldCheck className="w-4 h-4 text-green-500" />
+              <span>Paiement sécurisé par myPOS</span>
+            </div>
             <Link href="/products" className="block text-center text-orange-500 text-sm mt-4 hover:text-orange-600">
               {t('common.continueShopping')}
             </Link>
