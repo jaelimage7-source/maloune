@@ -41,6 +41,7 @@ enum PaymentStatus {
 }
 
 enum PaymentProvider {
+  MYPOS
   STRIPE
   PAYPAL
 }

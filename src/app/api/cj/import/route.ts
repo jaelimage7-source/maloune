@@ -1,7 +1,10 @@
+import { isAdminRequest, unauthorizedResponse } from '@/lib/security/api-auth';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
+  // @ts-expect-error NextRequest compatible
+  if (!isAdminRequest(request)) return unauthorizedResponse();
   try {
     const { cjProductId, name, image, costPrice, sellPrice, category, weight, description } = await request.json();
     if (!name || !sellPrice) return NextResponse.json({ error: 'Nom et prix requis' }, { status: 400 });

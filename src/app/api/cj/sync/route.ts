@@ -1,3 +1,4 @@
+import { isAdminRequest, unauthorizedResponse } from '@/lib/security/api-auth';
 import { NextResponse } from 'next/server';
 
 const CJ_API_BASE = 'https://developers.cjdropshipping.com/api2.0/v1';
@@ -14,6 +15,8 @@ async function getCJToken(): Promise<string> {
 }
 
 export async function POST(request: Request) {
+  // @ts-expect-error NextRequest compatible
+  if (!isAdminRequest(request)) return unauthorizedResponse();
   try {
     const { action } = await request.json();
     const token = await getCJToken();
