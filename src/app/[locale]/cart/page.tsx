@@ -16,26 +16,24 @@ export default function CartPage() {
   const totalItems = useCartStore((s) => s.totalItems);
   const [loading, setLoading] = useState(false);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     setLoading(true);
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: items.map(i => ({
-            name: i.name, price: i.price, quantity: i.quantity, image: i.image,
-          })),
-          locale,
-        }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else alert(data.error || 'Erreur de paiement');
-    } catch (e) {
-      alert('Erreur de connexion');
-    }
-    setLoading(false);
+    // Create and submit a form to the checkout API
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/checkout';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'data';
+    input.value = JSON.stringify({
+      items: items.map(i => ({
+        name: i.name, price: i.price, quantity: i.quantity,
+      })),
+      locale,
+    });
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
   };
 
   if (items.length === 0) {
