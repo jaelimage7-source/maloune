@@ -9,12 +9,10 @@ const MYPOS_CHECKOUT_URL_LIVE = 'https://mypos.eu/vmp/checkout';
 const CHECKOUT_URL = process.env.MYPOS_LIVE === 'true' ? MYPOS_CHECKOUT_URL_LIVE : MYPOS_CHECKOUT_URL;
 
 function getPrivateKey(): string {
-  // Try base64 encoded key first (most reliable for env vars)
   const b64Key = process.env.MYPOS_PRIVATE_KEY_B64;
   if (b64Key) {
     return Buffer.from(b64Key, 'base64').toString('utf-8');
   }
-  // Fallback to direct key with newline replacement
   let pk = process.env.MYPOS_PRIVATE_KEY || '';
   pk = pk.replace(/\\n/g, '\n');
   return pk;
@@ -28,14 +26,12 @@ export interface CartItem {
 
 export interface CheckoutParams {
   orderId: string;
-  amount: number;
   currency?: string;
   cartItems: CartItem[];
   urlOk: string;
   urlCancel: string;
   urlNotify: string;
   customerEmail?: string;
-  expirationDays?: number;
 }
 
 function generateSignature(data: Record<string, string>): string {
@@ -58,66 +54,52 @@ export function createCheckoutForm(params: CheckoutParams): { url: string; field
     urlCancel,
     urlNotify,
     customerEmail = '',
-    expirationDays = 1,
   } = params;
 
   const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  const data: Record<string, string> = {
-    IPCmethod: 'IPCPurchase',
-    IPCVersion: '1.4',
-    IPCLanguage: 'fr',
-    SID: MYPOS_SID,
-    WalletNumber: MYPOS_WALLET,
-    KeyIndex: MYPOS_KEY_INDEX,
-    Source: 'NAP',
-    Currency: currency,
-    Amount: totalAmount.toFixed(2),
-    OrderID: orderId,
-    URL_OK: urlOk,
-    URL_Cancel: urlCancel,
-    URL_Notify: urlNotify,
-    CustomerEmail: customerEmail,
-    Note: '',
-    CartItems: cartItems.length.toString(),
-  };
+  // Build form data - exact order from myPOS docs
+  const data: Record<string, string> = {};
+  
+  data['IPCmethod'] = 'IPCPurchase';
+  data['IPCVersion'] = '1.4';
+  data['IPCLanguage'] = 'fr';
+  data['SID'] = MYPOS_SID;
+  data['walletnumber'] = MYPOS_WALLET;
+  data['Amount'] = totalAmount.toFixed(2);
+  data['Currency'] = currency;
+  data['OrderID'] = orderId;
+  data['URL_OK'] = urlOk;
+  data['URL_Cancel'] = urlCancel;
+  data['URL_Notify'] = urlNotify;
+  data['KeyIndex'] = MYPOS_KEY_INDEX;
+  data['Source'] = 'NAP';
+  data['CardTokenRequest'] = '0';
+  data['PaymentParametersRequired'] = '3';
+  data['PaymentMethod'] = '1';
 
+  if (customerEmail) {
+    data['customeremail'] = customerEmail;
+  }
+
+  data['Note'] = '';
+  data['CartItems'] = cartItems.length.toString();
+
+  // Add cart items
   cartItems.forEach((item, index) => {
     const idx = index + 1;
-    data[`Article_${idx}`] = item.name;
+    data[`Article_${idx}`] = item.name.substring(0, 100);
     data[`Quantity_${idx}`] = item.quantity.toString();
     data[`Price_${idx}`] = item.price.toFixed(2);
     data[`Amount_${idx}`] = (item.price * item.quantity).toFixed(2);
     data[`Currency_${idx}`] = currency;
   });
 
-  const expDate = new Date();
-  expDate.setDate(expDate.getDate() + expirationDays);
-  data['Expiration'] = expDate.toISOString().replace('T', ' ').substring(0, 19);
-
+  // Generate signature
   const privateKey = getPrivateKey();
   if (privateKey && privateKey.includes('PRIVATE KEY')) {
     data['Signature'] = generateSignature(data);
   }
 
   return { url: CHECKOUT_URL, fields: data };
-}
-
-export function verifyNotification(postData: Record<string, string>, publicCert: string): boolean {
-  try {
-    const signature = postData['Signature'];
-    if (!signature) return false;
-
-    const dataWithoutSignature = { ...postData };
-    delete dataWithoutSignature['Signature'];
-
-    const concatenated = Object.values(dataWithoutSignature).join('-');
-    const verify = crypto.createVerify('SHA256');
-    verify.update(concatenated);
-    verify.end();
-
-    return verify.verify(publicCert, signature, 'base64');
-  } catch {
-    return false;
-  }
 }
