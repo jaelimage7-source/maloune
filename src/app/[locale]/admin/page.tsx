@@ -1,3 +1,4 @@
+import AdminGuard from '@/components/auth/AdminGuard';
 'use client';
 import { useState } from 'react';
 import { Search, Package, Check, AlertCircle, Loader2, Plus, Eye, Upload, X, Image as ImageIcon } from 'lucide-react';
@@ -12,7 +13,7 @@ interface Product {
   description: string;
 }
 
-export default function AdminPage() {
+function AdminPageContent() {
   const [tab, setTab] = useState<'manual' | 'cj'>('manual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -412,5 +413,14 @@ export default function AdminPage() {
         )}
       </div>
     </main>
+  );
+}
+
+
+export default function AdminPage() {
+  return (
+    <AdminGuard>
+      <AdminPageContent />
+    </AdminGuard>
   );
 }

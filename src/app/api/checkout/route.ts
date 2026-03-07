@@ -24,7 +24,6 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 }
 
-// V-08: CSRF check
 function isValidOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin') || '';
   const referer = request.headers.get('referer') || '';
@@ -56,7 +55,6 @@ export async function POST(request: NextRequest) {
     if (!items || !items.length) return new Response('No items', { status: 400 });
     if (items.length > 50) return new Response('Too many items', { status: 400 });
 
-    // V-02: Validate prices and sanitize names
     for (const item of items) {
       if (typeof item.price !== 'number' || item.price <= 0 || item.price > 10000) {
         return new Response('Invalid price', { status: 400 });
@@ -77,8 +75,6 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const MyPOS = require('mypos-js');
     
-    // V-12 FIX: Pass production=true to avoid file loading,
-    // BUT override ipcApiUrl to use test or production based on MYPOS_LIVE
     const mypos = new MyPOS(true, {
       keyIndex: parseInt(process.env.MYPOS_KEY_INDEX || '1'),
       sid: SID,
@@ -87,10 +83,6 @@ export async function POST(request: NextRequest) {
       privateKey: privateKey,
       APIPublicKey: publicCert,
       encryptPublicKey: publicCert,
-      // V-12: Explicit URL based on MYPOS_LIVE env var
-      ipcApiUrl: isLive 
-        ? 'https://www.mypos.eu/vmp/checkout' 
-        : 'https://www.mypos.eu/vmp/checkout-test',
     }, {
       cancelUrl: `https://maloune.fr/${locale}/cart`,
       notifyUrl: `https://maloune.fr/api/mypos/webhook`,
@@ -106,11 +98,20 @@ export async function POST(request: NextRequest) {
       cart.addItem(escapeHtml(item.name), item.quantity || 1, Number(item.price.toFixed(2)));
     }
 
-    const html = await mypos.Purchase(null, cart, {
+    let html = await mypos.Purchase(null, cart, {
       orderId: orderId,
       currency: 'EUR',
       note: '',
     });
+
+    // V-12 FIX: SDK always sets production URL when production=true
+    // Override to test URL when MYPOS_LIVE is not true
+    if (!isLive) {
+      html = html.replace(
+        'https://www.mypos.eu/vmp/checkout"',
+        'https://www.mypos.eu/vmp/checkout-test"'
+      );
+    }
 
     return new Response(html, {
       status: 200,
