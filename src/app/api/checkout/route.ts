@@ -2,19 +2,14 @@ import { NextRequest } from 'next/server';
 
 function getPrivateKey(): string {
   const b64Key = process.env.MYPOS_PRIVATE_KEY_B64;
-  if (b64Key) {
-    return Buffer.from(b64Key, 'base64').toString('utf-8');
-  }
+  if (b64Key) return Buffer.from(b64Key, 'base64').toString('utf-8');
   let pk = process.env.MYPOS_PRIVATE_KEY || '';
-  pk = pk.replace(/\\n/g, '\n');
-  return pk;
+  return pk.replace(/\\n/g, '\n');
 }
 
 function getPublicCert(): string {
   const b64Key = process.env.MYPOS_PUBLIC_CERT_B64;
-  if (b64Key) {
-    return Buffer.from(b64Key, 'base64').toString('utf-8');
-  }
+  if (b64Key) return Buffer.from(b64Key, 'base64').toString('utf-8');
   return '';
 }
 
@@ -24,7 +19,6 @@ export async function POST(request: NextRequest) {
     let locale = 'fr';
     
     const contentType = request.headers.get('content-type') || '';
-    
     if (contentType.includes('application/json')) {
       const json = await request.json();
       items = json.items;
@@ -36,25 +30,29 @@ export async function POST(request: NextRequest) {
       locale = data.locale || 'fr';
     }
 
-    if (!items || !items.length) {
-      return new Response('No items', { status: 400 });
-    }
+    if (!items || !items.length) return new Response('No items', { status: 400 });
 
     const orderId = `MAL-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const privateKey = getPrivateKey();
     const publicCert = getPublicCert();
-    const isSandbox = process.env.MYPOS_LIVE !== 'true';
+    const isLive = process.env.MYPOS_LIVE === 'true';
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const MyPOS = require('mypos-js');
     
-    const mypos = new MyPOS(!isSandbox, {
+    // ALWAYS pass true for production to avoid file loading
+    // Then override ipcApiUrl for test mode
+    const mypos = new MyPOS(true, {
       keyIndex: parseInt(process.env.MYPOS_KEY_INDEX || '1'),
       sid: process.env.MYPOS_SID || '1306645',
       wallet: parseInt(process.env.MYPOS_WALLET || '40016394476'),
       lang: 'fr',
       privateKey: privateKey,
-      encryptPublicKey: publicCert || privateKey,
+      APIPublicKey: publicCert,
+      encryptPublicKey: publicCert,
+      ipcApiUrl: isLive 
+        ? 'https://www.mypos.eu/vmp/checkout' 
+        : 'https://www.mypos.eu/vmp/checkout-test',
     }, {
       cancelUrl: `https://maloune.fr/${locale}/cart`,
       notifyUrl: `https://maloune.fr/api/mypos/webhook`,
