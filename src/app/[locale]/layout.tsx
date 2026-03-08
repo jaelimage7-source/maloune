@@ -12,6 +12,15 @@ export const metadata: Metadata = {
     default: 'Maloune — Boutique en ligne',
     template: '%s | Maloune',
   },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/site.webmanifest',
   description: 'Découvrez les meilleurs produits livrés chez vous. Paiement sécurisé, livraison rapide.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://maloune.com'),
   openGraph: {
