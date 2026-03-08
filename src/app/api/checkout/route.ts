@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { createOrder } from '@/lib/services/order.service';
 
 function getPrivateKey(): string {
   const b64Key = process.env.MYPOS_PRIVATE_KEY_B64;
@@ -38,18 +39,21 @@ export async function POST(request: NextRequest) {
       return new Response('Invalid origin', { status: 403 });
     }
 
-    let items: { name: string; price: number; quantity: number }[];
+    let items: { name: string; price: number; quantity: number; image?: string; productId?: string }[];
     let locale = 'fr';
-    
+    let shipping = null;
+
     if (contentType.includes('application/json')) {
       const json = await request.json();
       items = json.items;
       locale = json.locale || 'fr';
+      shipping = json.shipping || null;
     } else {
       const formData = await request.formData();
       const data = JSON.parse(formData.get('data') as string);
       items = data.items;
       locale = data.locale || 'fr';
+      shipping = data.shipping || null;
     }
 
     if (!items || !items.length) return new Response('No items', { status: 400 });
@@ -66,6 +70,24 @@ export async function POST(request: NextRequest) {
     }
 
     const orderId = `MAL-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+    // Save order to database BEFORE payment
+    if (shipping && shipping.email) {
+      try {
+        await createOrder({
+          orderId,
+          items,
+          shipping,
+          locale,
+          totalAmount,
+        });
+        console.log('Order saved to DB:', orderId);
+      } catch (dbError) {
+        console.error('DB save error (continuing to payment):', dbError);
+      }
+    }
+
     const privateKey = getPrivateKey();
     const publicCert = getPublicCert();
     const SID = getRequiredEnv('MYPOS_SID');
@@ -74,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const MyPOS = require('mypos-js');
-    
+
     const mypos = new MyPOS(true, {
       keyIndex: parseInt(process.env.MYPOS_KEY_INDEX || '1'),
       sid: SID,
@@ -104,13 +126,8 @@ export async function POST(request: NextRequest) {
       note: '',
     });
 
-    // V-12 FIX: SDK always sets production URL when production=true
-    // Override to test URL when MYPOS_LIVE is not true
     if (!isLive) {
-      html = html.replace(
-        'https://www.mypos.eu/vmp/checkout"',
-        'https://www.mypos.eu/vmp/checkout-test"'
-      );
+      html = html.replaceAll('mypos.eu/vmp/checkout', 'mypos.eu/vmp/checkout-test');
     }
 
     return new Response(html, {
