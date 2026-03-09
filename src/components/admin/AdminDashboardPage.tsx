@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   BarChart3, Package, Users, ShoppingCart, TrendingUp, Clock, CheckCircle,
   Truck, XCircle, Search, ChevronRight, RefreshCw, Loader2, Plus, Eye,
-  Upload, X, Image as ImageIcon, Edit, DollarSign, AlertCircle, Check
+  Upload, X, Image as ImageIcon, Edit, DollarSign, AlertCircle, Check, Send
 } from "lucide-react";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -51,6 +51,8 @@ function AdminDashboard() {
   const [editCarrier, setEditCarrier] = useState("");
   const [editNote, setEditNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
 
   // Products state (keep existing)
   const [prodTab, setProdTab] = useState<"manual" | "cj">("manual");
@@ -127,6 +129,28 @@ function AdminDashboard() {
       }
     } catch { /* */ }
     setSaving(false);
+  };
+
+  const resendEmail = async (orderId: string) => {
+    setResending(true);
+    setResendMsg("");
+    try {
+      const res = await fetch("/api/admin/orders/resend-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResendMsg("Email envoye !");
+      } else {
+        setResendMsg("Ere: " + (data.error || "echwe"));
+      }
+    } catch {
+      setResendMsg("Ere rezo");
+    }
+    setResending(false);
+    setTimeout(() => setResendMsg(""), 4000);
   };
 
   const saveProduct = async () => {
@@ -348,6 +372,19 @@ function AdminDashboard() {
                         <span>Total</span>
                         <span>{fmt(Number(selectedOrder.totalAmount))}</span>
                       </div>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-3">
+                      <button onClick={() => resendEmail(selectedOrder.id)} disabled={resending}
+                        className="w-full py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
+                        {resending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Renvoyer email de confirmation
+                      </button>
+                      {resendMsg && (
+                        <p className={`text-xs text-center mt-2 ${resendMsg.startsWith("Ere") ? "text-red-500" : "text-green-600"}`}>
+                          {resendMsg}
+                        </p>
+                      )}
                     </div>
 
                     <div className="border-t border-gray-100 pt-3 space-y-2">

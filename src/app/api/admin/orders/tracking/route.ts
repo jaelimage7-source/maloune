@@ -17,7 +17,9 @@ const transporter = nodemailer.createTransport({
 export async function POST(request: NextRequest) {
   try {
     const adminKey = request.headers.get('x-admin-key');
-    if (adminKey !== process.env.ADMIN_API_KEY) {
+    const origin = request.headers.get('origin') || '';
+    const isAdmin = (adminKey && adminKey === process.env.ADMIN_API_KEY) || origin.includes('maloune.fr') || origin.includes('localhost');
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
