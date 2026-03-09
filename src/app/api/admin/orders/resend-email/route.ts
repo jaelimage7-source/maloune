@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       orderNumber: orderNum,
       amount,
       items: order.items.map((item: any) => ({
-        name: item.name || item.productName || 'Produit',
+        name: item.name || (item as any).productName || 'Produit',
         quantity: item.quantity || 1,
         price: String(item.price || '0'),
       })),

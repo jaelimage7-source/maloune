@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     const itemsList = order.items.map((item: any) =>
-      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${item.name || item.productName || 'Produit'}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.quantity || 1}</td></tr>`
+      `<tr><td style="padding:8px;border-bottom:1px solid #eee">${item.name || (item as any).productName || 'Produit'}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${item.quantity || 1}</td></tr>`
     ).join('');
 
     const trackLink = trackingUrl
