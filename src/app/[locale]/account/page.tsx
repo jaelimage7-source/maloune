@@ -1,4 +1,6 @@
 "use client";
+// @ts-ignore
+import OrderTimeline from "@/components/orders/OrderTimeline";
 
 import { useState, useEffect, useCallback } from "react";
 import { User, Package, LogIn, LogOut, Eye, EyeOff, Loader2, ChevronRight, Clock, CheckCircle, Truck, XCircle, MapPin, UserPlus } from "lucide-react";

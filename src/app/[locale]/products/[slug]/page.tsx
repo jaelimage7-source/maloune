@@ -7,6 +7,7 @@ import { Link } from '@/i18n/routing';
 import { Star, Minus, Plus, ShoppingBag, Truck, Shield, RotateCcw, Check, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/lib/store';
 import ProductCard from '@/components/products/ProductCard';
+import SocialShare from '@/components/products/SocialShare';
 
 interface Variant {
   id: number;

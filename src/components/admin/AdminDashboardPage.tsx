@@ -1,4 +1,7 @@
 "use client";
+import SalesChart from "./SalesChart";
+import StockAlerts from "./StockAlerts";
+import OrderNotification from "./OrderNotification";
 // Admin Dashboard Component
 import AdminGuard from "@/components/auth/AdminGuard";
 import { useState, useEffect, useCallback } from "react";
@@ -233,7 +236,8 @@ function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900">Maloune Admin</h1>
-            <button onClick={() => { fetchStats(); if (tab === "orders") fetchOrders(); if (tab === "customers") fetchCustomers(); }}
+            <OrderNotification />
+          <button onClick={() => { fetchStats(); if (tab === "orders") fetchOrders(); if (tab === "customers") fetchCustomers(); }}
               className="text-gray-400 hover:text-gray-600 p-2"><RefreshCw className="w-4 h-4" /></button>
           </div>
           <div className="flex gap-1 mt-2 overflow-x-auto">
@@ -339,6 +343,10 @@ function AdminDashboard() {
                 <option value="ALL">Tous</option>
                 {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              <SalesChart />
+              <StockAlerts />
             </div>
 
             <p className="text-sm text-gray-400 mb-3">{orderTotal} commande{orderTotal !== 1 ? "s" : ""}</p>
