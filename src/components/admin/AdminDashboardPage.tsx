@@ -413,16 +413,28 @@ function AdminDashboard() {
                     </div>
 
                     <div className="border-t border-gray-100 pt-3">
+                      <h3 className="font-semibold text-sm mb-2">Commander chez le fournisseur</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <a href="https://www.printful.com/dashboard/orders" target="_blank" rel="noopener noreferrer"
+                          className="py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 flex items-center justify-center gap-1 text-xs">
+                          <Package className="w-3.5 h-3.5" /> Printful
+                        </a>
+                        <a href="https://app.cjdropshipping.com/order" target="_blank" rel="noopener noreferrer"
+                          className="py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 flex items-center justify-center gap-1 text-xs">
+                          <Truck className="w-3.5 h-3.5" /> CJ Dropshipping
+                        </a>
+                      </div>
                       <button onClick={() => orderOnCJ(selectedOrder.id)} disabled={cjOrdering}
-                        className="w-full py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
-                        {cjOrdering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
-                        Commander sur CJ Dropshipping
+                        className="w-full mt-2 py-1.5 border border-green-300 text-green-700 rounded-lg text-xs hover:bg-green-50 disabled:opacity-50 flex items-center justify-center gap-1">
+                        {cjOrdering ? <Loader2 className="w-3 h-3 animate-spin" /> : <Truck className="w-3 h-3" />}
+                        Auto CJ (API)
                       </button>
                       {cjMsg && (
-                        <p className={`text-xs text-center mt-2 ${cjMsg.startsWith("Echwe") || cjMsg.startsWith("Ere") ? "text-red-500" : "text-green-600"}`}>
+                        <p className={`text-xs text-center mt-1 ${cjMsg.startsWith("Echwe") || cjMsg.startsWith("Ere") || cjMsg.startsWith("Pas") ? "text-red-500" : "text-green-600"}`}>
                           {cjMsg}
                         </p>
                       )}
+                      <p className="text-xs text-gray-400 mt-2">Dad Hat \u2192 Printful | AirPods Case \u2192 CJ</p>
                     </div>
 
                     <div className="border-t border-gray-100 pt-3 space-y-2">
