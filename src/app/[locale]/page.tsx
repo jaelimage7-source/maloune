@@ -264,20 +264,41 @@ export default function HomePage() {
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
               {categories.slice(0, 8).map((c, i) => {
-                const colors = [
-                  'from-orange-400 to-amber-500', 'from-blue-400 to-indigo-500',
-                  'from-emerald-400 to-teal-500', 'from-purple-400 to-violet-500',
-                  'from-rose-400 to-pink-500', 'from-cyan-400 to-blue-500',
-                  'from-amber-400 to-orange-500', 'from-indigo-400 to-purple-500',
+                const categoryImages: Record<string, string> = {
+                  'print-on-demand': 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&h=300&fit=crop&q=80',
+                  'rangement-bureau': 'https://images.unsplash.com/photo-1618220179428-22790b461013?w=400&h=300&fit=crop&q=80',
+                  'home-office-storage': 'https://images.unsplash.com/photo-1618220179428-22790b461013?w=400&h=300&fit=crop&q=80',
+                  'mobilier': 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop&q=80',
+                  'furniture': 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop&q=80',
+                  'bagues': 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=300&fit=crop&q=80',
+                  'rings': 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=300&fit=crop&q=80',
+                  'ecouteurs-casques': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop&q=80',
+                  'earphones-headphones': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop&q=80',
+                  'projecteurs': 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400&h=300&fit=crop&q=80',
+                  'projectors': 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400&h=300&fit=crop&q=80',
+                  'veilleuses': 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=300&fit=crop&q=80',
+                  'night-lights': 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=300&fit=crop&q=80',
+                  'pieces-electromenager': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&q=80',
+                  'home-appliance-parts': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&q=80',
+                };
+                const fallbacks = [
+                  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=300&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=400&h=300&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1607082349566-187342175e2f?w=400&h=300&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?w=400&h=300&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=400&h=300&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=300&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400&h=300&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=300&fit=crop&q=80',
                 ];
-                const emojis = ['🏷️', '💡', '🎨', '🏠', '⚡', '🎯', '✨', '🌟'];
+                const imgUrl = categoryImages[c.slug] || fallbacks[i % fallbacks.length];
                 return (
                   <Link key={i} href={`/products?cat=${c.slug}`}>
-                    <div className="group relative overflow-hidden rounded-2xl cursor-pointer h-40 shadow-sm hover:shadow-xl transition-all duration-300">
-                      <div className={`absolute inset-0 bg-gradient-to-br ${colors[i % colors.length]} opacity-90 group-hover:opacity-100 transition-opacity`} />
-                      <div className="relative z-10 h-full flex flex-col items-center justify-center text-white p-6">
-                        <span className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">{emojis[i % emojis.length]}</span>
-                        <h3 className="font-bold text-base text-center">{c.name}</h3>
+                    <div className="group relative overflow-hidden rounded-2xl cursor-pointer h-44 shadow-sm hover:shadow-xl transition-all duration-300">
+                      <img src={imgUrl} alt={c.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                      <div className="relative z-10 h-full flex items-end p-4">
+                        <h3 className="font-bold text-base text-white drop-shadow-lg">{c.name}</h3>
                       </div>
                     </div>
                   </Link>
