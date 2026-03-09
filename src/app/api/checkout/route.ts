@@ -54,26 +54,34 @@ export async function POST(request: NextRequest) {
     const urlCancel = 'https://maloune.fr/fr/cart';
     const urlNotify = 'https://maloune.fr/api/mypos/webhook';
     const note = `Commande ${orderNumber}`;
-    const source = 'SDK_NODE_1.0';
+    const source = 'SDK_PHP_1.4';
 
-    // Build ordered form params - EXACT order from myPOS PHP SDK
-    // This order determines signature calculation
+    // Build ordered form params - EXACT order from PHP SDK Purchase.process()
     const orderedParams: [string, string][] = [];
     
+    // 1-3: Method, Version, Language
     orderedParams.push(['IPCmethod', 'IPCPurchase']);
     orderedParams.push(['IPCVersion', '1.4']);
     orderedParams.push(['IPCLanguage', 'fr']);
+    
+    // 4-7: SID, WalletNumber, KeyIndex, Source (PHP SDK puts these EARLY)
     orderedParams.push(['SID', sid]);
-    orderedParams.push(['walletnumber', wallet]);
-    orderedParams.push(['Amount', totalAmount]);
+    orderedParams.push(['WalletNumber', wallet]);
+    orderedParams.push(['KeyIndex', keyIndex]);
+    orderedParams.push(['Source', source]);
+    
+    // 8-9: Currency BEFORE Amount (PHP SDK order)
     orderedParams.push(['Currency', 'EUR']);
+    orderedParams.push(['Amount', totalAmount]);
+    
+    // 10-14: OrderID, URLs, Note
     orderedParams.push(['OrderID', orderNumber]);
     orderedParams.push(['URL_OK', urlOk]);
     orderedParams.push(['URL_Cancel', urlCancel]);
     orderedParams.push(['URL_Notify', urlNotify]);
     orderedParams.push(['Note', note]);
     
-    // Cart items
+    // 15+: Cart items (Article, Quantity, Price, Amount, Currency per item)
     orderedParams.push(['CartItems', items.length.toString()]);
     items.forEach((item: any, i: number) => {
       const n = i + 1;
@@ -83,21 +91,20 @@ export async function POST(request: NextRequest) {
       orderedParams.push([`Article_${n}`, item.name || `Product ${n}`]);
       orderedParams.push([`Quantity_${n}`, qty]);
       orderedParams.push([`Price_${n}`, price]);
-      orderedParams.push([`Currency_${n}`, 'EUR']);
       orderedParams.push([`Amount_${n}`, itemAmount]);
+      orderedParams.push([`Currency_${n}`, 'EUR']);
     });
     
+    // Last 3: CardTokenRequest, PaymentParametersRequired, PaymentMethod
     orderedParams.push(['CardTokenRequest', '0']);
     orderedParams.push(['PaymentParametersRequired', '3']);
     orderedParams.push(['PaymentMethod', '1']);
-    orderedParams.push(['KeyIndex', keyIndex]);
-    orderedParams.push(['Source', source]);
 
-    // Generate signature per myPOS docs:
-    // 1. Concatenate all VALUES with "-"
-    // 2. Base64 encode the concatenated string
-    // 3. Sign with SHA256+RSA private key
-    // 4. Base64 encode the signature
+    // Generate signature per PHP SDK Base._createSignature():
+    // 1. implode('-', values)
+    // 2. base64_encode
+    // 3. openssl_sign with SHA256
+    // 4. base64_encode signature
     const values = orderedParams.map(([, v]) => v);
     const concatenated = values.join('-');
     const toSign = Buffer.from(concatenated).toString('base64');
@@ -107,7 +114,7 @@ export async function POST(request: NextRequest) {
     sign.end();
     const signature = sign.sign(privateKey, 'base64');
 
-    // Add signature to form
+    // Add signature at end
     orderedParams.push(['Signature', signature]);
 
     // Build auto-submit HTML form
