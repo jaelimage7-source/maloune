@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Always use production=true (keys are production keys from myPOS config pack)
     // Test/prod URL is handled by replaceAll below if MYPOS_LIVE=false
-    const mypos = new MyPOS(true, {
+    const mypos = new MyPOS(process.env.MYPOS_LIVE === "true", {
       keyIndex: parseInt(process.env.MYPOS_KEY_INDEX || '1'),
       sid: SID,
       wallet: parseInt(WALLET),
