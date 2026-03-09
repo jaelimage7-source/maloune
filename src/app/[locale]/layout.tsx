@@ -3,9 +3,16 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
+import { DM_Sans } from 'next/font/google';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import '@/styles/globals.css';
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: {
@@ -22,7 +29,7 @@ export const metadata: Metadata = {
   },
   manifest: '/site.webmanifest',
   description: 'Découvrez les meilleurs produits livrés chez vous. Paiement sécurisé, livraison rapide.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://maloune.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://maloune.fr'),
   openGraph: {
     type: 'website',
     siteName: 'Maloune',
@@ -48,12 +55,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-sans">
+      <body className={dmSans.className} suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
           <Header />
           <div className="min-h-screen">{children}</div>
