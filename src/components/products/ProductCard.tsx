@@ -1,6 +1,7 @@
 'use client';
 
 import { Star, ShoppingBag } from 'lucide-react';
+import WishlistButton from './WishlistButton';
 import { Link } from '@/i18n/routing';
 import { useCartStore } from '@/lib/store';
 
@@ -41,6 +42,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
 
           {product.tag && <span className="absolute top-3 left-3 badge-brand">{product.tag}</span>}
+          <div className="absolute top-3 right-12 z-10"><WishlistButton product={{ id: product.id, slug: product.slug, name: product.name, price: product.price, comparePrice: product.comparePrice, image: product.image }} /></div>
           {discount > 0 && <span className="absolute top-3 right-3 badge bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">-{discount}%</span>}
 
           {!product.inStock && (

@@ -4,15 +4,17 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/routing';
 import { useCartStore } from '@/lib/store';
-import { ShoppingBag, Menu, X } from 'lucide-react';
+import { ShoppingBag, Menu, X, Heart } from 'lucide-react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import SearchBar from '@/components/layout/SearchBar';
+import { useWishlistStore } from '@/lib/wishlist-store';
 import Image from 'next/image';
 
 export default function Header() {
   const t = useTranslations('common');
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const wishlistCount = useWishlistStore((s) => s.totalItems());
   const totalItems = useCartStore((s) => s.totalItems());
 
   const navLinks = [
@@ -43,6 +45,10 @@ export default function Header() {
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
+            <Link href="/wishlist" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
+              <Heart className="w-5 h-5 text-gray-600" />
+              {wishlistCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{wishlistCount}</span>}
+            </Link>
             <Link href="/cart" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <ShoppingBag className="w-5 h-5 text-gray-600" />
               {totalItems > 0 && (

@@ -61,6 +61,13 @@ export default function ProductDetailPage() {
         if (data.product) {
           setProduct(data.product);
           setRelated(data.related || []);
+          // Save to recently viewed
+          try {
+            const stored = JSON.parse(sessionStorage.getItem('maloune_recently_viewed') || '[]');
+            const filtered = stored.filter((p: any) => p.slug !== slug);
+            const newItem = { id: data.id, slug: data.slug, name: data.name, price: data.price, comparePrice: data.comparePrice, image: data.image, rating: data.rating, reviewCount: data.reviewCount, inStock: data.inStock };
+            sessionStorage.setItem('maloune_recently_viewed', JSON.stringify([newItem, ...filtered].slice(0, 10)));
+          } catch {}
           // Auto-select first variant
           if (data.product.variants?.length > 0) {
             setSelectedVariant(data.product.variants[0]);
