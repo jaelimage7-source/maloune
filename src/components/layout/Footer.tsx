@@ -22,7 +22,9 @@ export default function Footer() {
                 className="h-16 w-auto"
               />
             </Link>
-            <p className="text-sm leading-relaxed mb-4">{t('aboutText')}</p>
+            <p className="text-sm leading-relaxed mb-4">
+              Maloune — Votre boutique en ligne de confiance. Produits tendance livrés chez vous.
+            </p>
             <div className="flex gap-3">
               <a href="#" className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-orange-500 transition-colors text-sm">f</a>
               <a href="#" className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-orange-500 transition-colors text-sm">ig</a>
@@ -31,36 +33,49 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-white mb-4">{t('links')}</h4>
+            <h4 className="font-semibold text-white mb-4">Liens utiles</h4>
             <ul className="space-y-2.5 text-sm">
               <li><Link href="/products" className="hover:text-orange-400 transition-colors">Tous les produits</Link></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors">Nouveautés</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors">Meilleures ventes</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors">Promotions</a></li>
+              <li><Link href="/products" className="hover:text-orange-400 transition-colors">Nouveautés</Link></li>
+              <li><Link href="/products" className="hover:text-orange-400 transition-colors">Meilleures ventes</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-white mb-4">Informations</h4>
             <ul className="space-y-2.5 text-sm">
-              <li><a href="#" className="hover:text-orange-400 transition-colors">{t('legal')}</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors">{t('privacy')}</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors">{t('terms')}</a></li>
-              <li><a href="#" className="hover:text-orange-400 transition-colors">{t('contact')}</a></li>
+              <li><Link href="/mentions-legales" className="hover:text-orange-400 transition-colors">Mentions légales</Link></li>
+              <li><Link href="/politique-confidentialite" className="hover:text-orange-400 transition-colors">Politique de confidentialité</Link></li>
+              <li><Link href="/conditions-generales" className="hover:text-orange-400 transition-colors">Conditions générales</Link></li>
+              <li><Link href="/politique-remboursement" className="hover:text-orange-400 transition-colors">Politique de remboursement</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold text-white mb-4">{t('contact')}</h4>
+            <h4 className="font-semibold text-white mb-4">Contact</h4>
             <ul className="space-y-2.5 text-sm">
-              <li>contact@maloune.fr</li>
-              <li>maloune.fr</li>
+              <li>
+                <a href="mailto:contact@maloune.fr" className="hover:text-orange-400 transition-colors">
+                  contact@maloune.fr
+                </a>
+              </li>
+              <li>
+                <a href="https://maloune.fr" className="hover:text-orange-400 transition-colors">
+                  maloune.fr
+                </a>
+              </li>
             </ul>
+            <p className="text-xs text-gray-500 mt-4">Paiement sécurisé par</p>
+            <div className="flex gap-2 mt-2">
+              <span className="text-xs bg-gray-800 px-2 py-1 rounded">myPOS</span>
+              <span className="text-xs bg-gray-800 px-2 py-1 rounded">Visa</span>
+              <span className="text-xs bg-gray-800 px-2 py-1 rounded">Mastercard</span>
+            </div>
           </div>
         </div>
 
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm">© {year} MALOUNE Boutique. {t('rights')}</p>
+          <p className="text-sm">© {year} MALOUNE Boutique. Tous droits réservés.</p>
           <div className="flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1">🔒 Paiement sécurisé</span>
             <span className="flex items-center gap-1">🚚 Livraison mondiale</span>
