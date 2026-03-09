@@ -1,139 +1,175 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { createOrder } from '@/lib/services/order.service';
 
 function getPrivateKey(): string {
-  const b64Key = process.env.MYPOS_PRIVATE_KEY_B64;
-  if (b64Key) return Buffer.from(b64Key, 'base64').toString('utf-8');
-  const pk = process.env.MYPOS_PRIVATE_KEY || '';
-  if (!pk) throw new Error('MYPOS_PRIVATE_KEY not configured');
-  return pk.replace(/\\n/g, '\n');
+  const b64 = process.env.MYPOS_PRIVATE_KEY_B64;
+  if (!b64) throw new Error('MYPOS_PRIVATE_KEY_B64 not set');
+  return Buffer.from(b64, 'base64').toString('utf-8');
 }
 
-function getPublicCert(): string {
-  const b64Key = process.env.MYPOS_PUBLIC_CERT_B64;
-  if (b64Key) return Buffer.from(b64Key, 'base64').toString('utf-8');
-  throw new Error('MYPOS_PUBLIC_CERT_B64 not configured');
-}
-
-function getRequiredEnv(name: string): string {
-  const val = process.env[name];
-  if (!val) throw new Error(`${name} not configured`);
-  return val;
-}
-
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
-}
-
-function isValidOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get('origin') || '';
-  const referer = request.headers.get('referer') || '';
-  const allowed = ['https://maloune.fr', 'https://www.maloune.fr', 'http://localhost'];
-  return allowed.some(a => origin.startsWith(a) || referer.startsWith(a));
+function generateSignature(data: string[], privateKeyPem: string): string {
+  // Per myPOS docs v1.4: concatenate values with "-", base64 encode, then sign with SHA256+RSA
+  const concatenated = data.join('-');
+  const toSign = Buffer.from(concatenated).toString('base64');
+  const sign = crypto.createSign('SHA256');
+  sign.update(toSign);
+  sign.end();
+  return sign.sign(privateKeyPem, 'base64');
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const contentType = request.headers.get('content-type') || '';
-    if (contentType.includes('application/json') && !isValidOrigin(request)) {
-      return new Response('Invalid origin', { status: 403 });
-    }
+    const formData = await request.formData();
+    
+    const items = JSON.parse(formData.get('items') as string || '[]');
+    const shipping = {
+      firstName: formData.get('firstName') as string || '',
+      lastName: formData.get('lastName') as string || '',
+      email: formData.get('email') as string || '',
+      phone: formData.get('phone') as string || '',
+      address: formData.get('address') as string || '',
+      city: formData.get('city') as string || '',
+      zip: formData.get('zip') as string || '',
+      country: formData.get('country') as string || 'FR',
+    };
 
-    let items: { name: string; price: number; quantity: number; image?: string; productId?: string }[];
-    let locale = 'fr';
-    let shipping = null;
+    const totalAmount = items.reduce((sum: number, item: any) => 
+      sum + (item.price * item.quantity), 0
+    ).toFixed(2);
 
-    if (contentType.includes('application/json')) {
-      const json = await request.json();
-      items = json.items;
-      locale = json.locale || 'fr';
-      shipping = json.shipping || null;
-    } else {
-      const formData = await request.formData();
-      const data = JSON.parse(formData.get('data') as string);
-      items = data.items;
-      locale = data.locale || 'fr';
-      shipping = data.shipping || null;
-    }
-
-    if (!items || !items.length) return new Response('No items', { status: 400 });
-    if (items.length > 50) return new Response('Too many items', { status: 400 });
-
-    for (const item of items) {
-      if (typeof item.price !== 'number' || item.price <= 0 || item.price > 10000) {
-        return new Response('Invalid price', { status: 400 });
-      }
-      if (typeof item.quantity !== 'number' || item.quantity <= 0 || item.quantity > 100) {
-        return new Response('Invalid quantity', { status: 400 });
-      }
-      item.name = item.name.replace(/<[^>]*>/g, '').substring(0, 100);
-    }
-
-    const orderId = `MAL-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-    const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-
-    // Save order to database BEFORE payment
-    if (shipping && shipping.email) {
-      try {
-        await createOrder({ orderId, items, shipping, locale, totalAmount });
-        console.log('Order saved to DB:', orderId);
-      } catch (dbError) {
-        console.error('DB save error (continuing to payment):', dbError);
-      }
+    // Save order to DB
+    let orderNumber = 'MAL-' + Date.now();
+    try {
+      const order = await createOrder({
+        items,
+        shipping,
+        totalAmount: parseFloat(totalAmount),
+        currency: 'EUR',
+      });
+      orderNumber = order.orderNumber;
+    } catch (e) {
+      console.error('Order save error (continuing):', e);
     }
 
     const privateKey = getPrivateKey();
-    const publicCert = getPublicCert();
-    const SID = getRequiredEnv('MYPOS_SID');
-    const WALLET = getRequiredEnv('MYPOS_WALLET');
+    const sid = process.env.MYPOS_SID || '';
+    const wallet = process.env.MYPOS_WALLET || '';
+    const keyIndex = process.env.MYPOS_KEY_INDEX || '1';
     const isLive = process.env.MYPOS_LIVE === 'true';
+    
+    const checkoutUrl = isLive 
+      ? 'https://www.mypos.eu/vmp/checkout' 
+      : 'https://www.mypos.eu/vmp/checkout-test';
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const MyPOS = require('mypos-js');
+    // Build cart HTML for myPOS
+    const cartItems = items.map((item: any, i: number) => ({
+      name: item.name || `Product ${i + 1}`,
+      quantity: item.quantity || 1,
+      price: parseFloat(item.price).toFixed(2),
+    }));
 
-    // Always use production=true (keys are production keys from myPOS config pack)
-    // Test/prod URL is handled by replaceAll below if MYPOS_LIVE=false
-    const mypos = new MyPOS(true, {
-      keyIndex: parseInt(process.env.MYPOS_KEY_INDEX || '1'),
-      sid: SID,
-      wallet: parseInt(WALLET),
-      lang: 'fr',
-      privateKey: privateKey,
-      APIPublicKey: publicCert,
-      encryptPublicKey: publicCert,
-      ipcApiUrl: "https://www.mypos.eu/vmp/checkout-test",
-    }, {
-      cancelUrl: `https://maloune.fr/${locale}/cart`,
-      notifyUrl: 'https://maloune.fr/api/mypos/webhook',
-      okUrl: `https://maloune.fr/${locale}/checkout/success?order=${orderId}`,
-    }, {
-      cardTokenRequest: 0,
-      purchaseType: 3,
+    // myPOS required fields in EXACT order for signature
+    const amount = totalAmount;
+    const currency = 'EUR';
+    const orderId = orderNumber;
+    const urlOk = `https://maloune.fr/fr/checkout/success?order=${orderNumber}`;
+    const urlCancel = 'https://maloune.fr/fr/cart';
+    const urlNotify = 'https://maloune.fr/api/mypos/webhook';
+    const cartItemsCount = cartItems.length.toString();
+    const note = `Commande ${orderNumber}`;
+    const cardTokenRequest = '0';
+    const paymentParametersRequired = '3';
+    const paymentMethod = '1';
+
+    // Build cart article fields
+    const articleFields: Record<string, string> = {};
+    cartItems.forEach((item: any, i: number) => {
+      const n = i + 1;
+      articleFields[`Article_${n}`] = item.name;
+      articleFields[`Quantity_${n}`] = item.quantity.toString();
+      articleFields[`Price_${n}`] = item.price;
+      articleFields[`Currency_${n}`] = currency;
     });
 
-    const cart = new mypos.Cart();
-    for (const item of items) {
-      cart.addItem(escapeHtml(item.name), item.quantity || 1, Number(item.price.toFixed(2)));
-    }
+    // Signature data array - MUST match exact order per myPOS API v1.4 docs
+    const signatureData = [
+      sid,           // IPCmethod implicit - SID
+      wallet,        // Wallet number  
+      keyIndex,      // KeyIndex
+      amount,        // Amount
+      currency,      // Currency
+      orderId,       // OrderID
+      urlNotify,     // URL_Notify
+      urlOk,         // URL_OK
+      urlCancel,     // URL_Cancel
+      note,          // Note
+      cardTokenRequest,        // CardTokenRequest
+      paymentParametersRequired, // PaymentParametersRequired
+      paymentMethod, // PaymentMethod
+    ];
 
-    let html = await mypos.Purchase(null, cart, {
-      orderId: orderId,
-      currency: 'EUR',
-      note: '',
+    // Add cart items to signature
+    cartItems.forEach((item: any) => {
+      signatureData.push(item.name);
+      signatureData.push(item.quantity.toString());
+      signatureData.push(item.price);
+      signatureData.push(currency);
     });
 
-    // If not live, redirect to test checkout URL
-    if (!isLive) {
-      html = html.replaceAll('mypos.eu/vmp/checkout', 'mypos.eu/vmp/checkout-test');
-    }
+    const signature = generateSignature(signatureData, privateKey);
 
-    return new Response(html, {
+    // Build auto-submit HTML form
+    const formFields: Record<string, string> = {
+      'Signature': signature,
+      'IPCmethod': 'IPCPurchase',
+      'IPCVersion': '1.4',
+      'IPCLanguage': 'fr',
+      'SID': sid,
+      'walletnumber': wallet,
+      'KeyIndex': keyIndex,
+      'Source': 'SDK_NODE_1.0',
+      'Amount': amount,
+      'Currency': currency,
+      'OrderID': orderId,
+      'URL_OK': urlOk,
+      'URL_Cancel': urlCancel,
+      'URL_Notify': urlNotify,
+      'Note': note,
+      'CardTokenRequest': cardTokenRequest,
+      'PaymentParametersRequired': paymentParametersRequired,
+      'PaymentMethod': paymentMethod,
+      'CartItems': cartItemsCount,
+      ...articleFields,
+    };
+
+    const hiddenInputs = Object.entries(formFields)
+      .map(([key, value]) => `<input type="hidden" name="${key}" value="${value.replace(/"/g, '&quot;')}" />`)
+      .join('\n');
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><title>Redirection vers myPOS...</title></head>
+<body>
+  <p>Redirection vers la page de paiement...</p>
+  <form id="mypos-form" method="POST" action="${checkoutUrl}">
+    ${hiddenInputs}
+  </form>
+  <script>document.getElementById('mypos-form').submit();</script>
+</body>
+</html>`;
+
+    return new NextResponse(html, {
       status: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      headers: { 'Content-Type': 'text/html' },
     });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    console.error('Checkout error:', msg);
-    return new Response(`Payment processing error: ${msg}`, { status: 500 });
+
+  } catch (error: any) {
+    console.error('Payment processing error:', error.message);
+    return NextResponse.json(
+      { error: 'Payment processing failed', details: error.message },
+      { status: 500 }
+    );
   }
 }
