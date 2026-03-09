@@ -1,7 +1,8 @@
 "use client";
-import SalesChart from "./SalesChart";
-import StockAlerts from "./StockAlerts";
-import OrderNotification from "./OrderNotification";
+import dynamic from 'next/dynamic';
+const SalesChart = dynamic(() => import('./SalesChart'), { ssr: false, loading: () => <div className="h-64 bg-gray-50 rounded-lg animate-pulse"></div> });
+const StockAlerts = dynamic(() => import('./StockAlerts'), { ssr: false });
+const OrderNotification = dynamic(() => import('./OrderNotification'), { ssr: false });
 // Admin Dashboard Component
 import AdminGuard from "@/components/auth/AdminGuard";
 import { useState, useEffect, useCallback } from "react";

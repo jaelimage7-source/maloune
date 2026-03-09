@@ -1,39 +1,56 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+function getPrivateKey(): string {
+  const b64Key = process.env.MYPOS_PRIVATE_KEY_B64;
+  if (b64Key) return Buffer.from(b64Key, 'base64').toString('utf-8');
+  const pk = process.env.MYPOS_PRIVATE_KEY || '';
+  return pk.replace(/\\n/g, '\n');
+}
+
 export async function GET() {
   const results: Record<string, any> = {};
-  
+
+  // Config check
+  results.config = {
+    sid: process.env.MYPOS_SID || 'NOT SET',
+    wallet: process.env.MYPOS_WALLET || 'NOT SET',
+    keyIndex: process.env.MYPOS_KEY_INDEX || 'NOT SET',
+    isLive: process.env.MYPOS_LIVE === 'true',
+    checkoutUrl: process.env.MYPOS_LIVE === 'true'
+      ? 'https://www.mypos.com/vmp/checkout'
+      : 'https://www.mypos.eu/vmp/checkout-test',
+    privateKeyB64Set: !!process.env.MYPOS_PRIVATE_KEY_B64,
+    publicCertB64Set: !!process.env.MYPOS_PUBLIC_CERT_B64,
+  };
+
+  // Signature test with official example values
   try {
-    const b64 = process.env.MYPOS_PRIVATE_KEY_B64 || '';
-    const privateKey = Buffer.from(b64, 'base64').toString('utf-8');
-    const isLive = process.env.MYPOS_LIVE === 'true';
-    
-    results.config = {
-      sid: process.env.MYPOS_SID,
-      wallet: process.env.MYPOS_WALLET,
-      keyIndex: process.env.MYPOS_KEY_INDEX,
-      isLive,
-      checkoutUrl: isLive ? 'https://www.mypos.eu/vmp/checkout' : 'https://www.mypos.eu/vmp/checkout-test',
-      privateKeyOk: privateKey.startsWith('-----BEGIN RSA PRIVATE KEY-----'),
+    const pem = getPrivateKey();
+    results.privateKey = {
+      length: pem.length,
+      startsCorrectly: pem.startsWith('-----BEGIN RSA PRIVATE KEY-----'),
+      endsCorrectly: pem.trimEnd().endsWith('-----END RSA PRIVATE KEY-----'),
     };
 
-    // Test signature generation
-    const testData = ['1306645', '40016394476', '1', '10.00', 'EUR', 'TEST-123', 'https://example.com/notify', 'https://example.com/ok', 'https://example.com/cancel', 'Test note', '0', '3', '1', 'Test Product', '1', '10.00', 'EUR'];
-    const concatenated = testData.join('-');
-    const toSign = Buffer.from(concatenated).toString('base64');
-    const sign = crypto.createSign('SHA256');
-    sign.update(toSign);
-    sign.end();
-    const sig = sign.sign(privateKey, 'base64');
+    // Test signature: concatenate values with dash, base64 encode, sign
+    const testValues = ['IPCPurchase', '1.4', 'FR', process.env.MYPOS_SID || '1306645'];
+    const concatenated = testValues.join('-');
+    const base64Data = Buffer.from(concatenated).toString('base64');
     
+    const sign = crypto.createSign('SHA256');
+    sign.update(base64Data);
+    sign.end();
+    const sig = sign.sign(pem, 'base64');
+
     results.signatureTest = {
       success: true,
+      testInput: concatenated,
+      base64Input: base64Data,
       signaturePreview: sig.substring(0, 50) + '...',
-      dataFieldCount: testData.length,
     };
   } catch (err: any) {
-    results.error = err.message;
+    results.signatureTest = { success: false, error: err.message };
   }
 
   return NextResponse.json(results);
