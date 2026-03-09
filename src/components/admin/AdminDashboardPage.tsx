@@ -52,6 +52,8 @@ function AdminDashboard() {
   const [editNote, setEditNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
+  const [cjOrdering, setCjOrdering] = useState(false);
+  const [cjMsg, setCjMsg] = useState("");
   const [resendMsg, setResendMsg] = useState("");
 
   // Products state (keep existing)
@@ -151,6 +153,29 @@ function AdminDashboard() {
     }
     setResending(false);
     setTimeout(() => setResendMsg(""), 4000);
+  };
+
+  const orderOnCJ = async (orderId: string) => {
+    setCjOrdering(true);
+    setCjMsg("");
+    try {
+      const res = await fetch("/api/admin/orders/cj-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCjMsg("CJ commande kreye: " + (data.cjOrderNum || "OK"));
+        fetchOrders();
+      } else {
+        setCjMsg(data.error || "Echwe");
+      }
+    } catch {
+      setCjMsg("Ere rezo");
+    }
+    setCjOrdering(false);
+    setTimeout(() => setCjMsg(""), 6000);
   };
 
   const saveProduct = async () => {
@@ -383,6 +408,19 @@ function AdminDashboard() {
                       {resendMsg && (
                         <p className={`text-xs text-center mt-2 ${resendMsg.startsWith("Ere") ? "text-red-500" : "text-green-600"}`}>
                           {resendMsg}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-3">
+                      <button onClick={() => orderOnCJ(selectedOrder.id)} disabled={cjOrdering}
+                        className="w-full py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
+                        {cjOrdering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+                        Commander sur CJ Dropshipping
+                      </button>
+                      {cjMsg && (
+                        <p className={`text-xs text-center mt-2 ${cjMsg.startsWith("Echwe") || cjMsg.startsWith("Ere") ? "text-red-500" : "text-green-600"}`}>
+                          {cjMsg}
                         </p>
                       )}
                     </div>

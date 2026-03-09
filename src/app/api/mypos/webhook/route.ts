@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { updateOrderStatus, createPaymentRecord, getOrderByNumber } from '@/lib/services/order.service';
 import { sendOrderConfirmation, sendAdminNotification } from '@/lib/services/email.service';
 import { processPrintfulItems } from '@/lib/services/printful-order.service';
+import { processCJOrder } from '@/lib/services/cj-order.service';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
