@@ -415,7 +415,7 @@ function AdminDashboard() {
                     <div className="border-t border-gray-100 pt-3">
                       <h3 className="font-semibold text-sm mb-2">Commander chez le fournisseur</h3>
                       <div className="grid grid-cols-2 gap-2">
-                        <a href="https://www.printful.com/dashboard/orders" target="_blank" rel="noopener noreferrer"
+                        <a href="https://www.printful.com/dashboard/default/orders" target="_blank" rel="noopener noreferrer"
                           className="py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 flex items-center justify-center gap-1 text-xs">
                           <Package className="w-3.5 h-3.5" /> Printful
                         </a>
