@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export async function GET(request: NextRequest) {
-  const results: Record<string, unknown> = {};
+  const results: Record<string, any> = {};
 
   // 1. Check env vars
   results.env = {
