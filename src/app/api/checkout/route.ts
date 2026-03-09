@@ -16,7 +16,7 @@ function getPublicCert(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    let items: { name: string; price: number; quantity: number }[];
+    let items: { name: string; price: number; quantity: number; productId?: string; variantId?: string; image?: string }[];
     let locale = 'fr';
     let shipping: {
       firstName?: string;
