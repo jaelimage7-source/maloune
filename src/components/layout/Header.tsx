@@ -6,6 +6,7 @@ import { Link, usePathname } from '@/i18n/routing';
 import { useCartStore } from '@/lib/store';
 import { ShoppingBag, Menu, X } from 'lucide-react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SearchBar from '@/components/layout/SearchBar';
 import Image from 'next/image';
 
 export default function Header() {
@@ -18,42 +19,34 @@ export default function Header() {
     { href: '/', label: t('home') },
     { href: '/products', label: t('products') },
     { href: '/account', label: t('account') },
+    { href: '/faq', label: 'FAQ' },
   ];
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
       <div className="container-shop">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center">
-            <Image
-              src="/images/logo-header.png"
-              alt="MALOUNE Boutique"
-              width={180}
-              height={68}
-              className="h-14 w-auto"
-              priority
-            />
+        <div className="flex items-center justify-between h-16 gap-4">
+          <Link href="/" className="flex items-center flex-shrink-0">
+            <Image src="/images/logo-header.png" alt="MALOUNE Boutique" width={180} height={68} className="h-14 w-auto" priority />
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href}
-                className={`text-sm font-medium transition-colors hover:text-orange-500 ${
-                  pathname === link.href ? 'text-orange-500' : 'text-gray-600'
-                }`}>
+                className={`text-sm font-medium transition-colors hover:text-orange-500 ${pathname === link.href ? 'text-orange-500' : 'text-gray-600'}`}>
                 {link.label}
               </Link>
             ))}
           </nav>
+
+          <div className="hidden md:block"><SearchBar /></div>
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <Link href="/cart" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <ShoppingBag className="w-5 h-5 text-gray-600" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {totalItems}
-                </span>
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{totalItems}</span>
               )}
             </Link>
             <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
@@ -63,12 +56,11 @@ export default function Header() {
         </div>
 
         {mobileOpen && (
-          <nav className="md:hidden py-4 border-t border-gray-100">
+          <nav className="md:hidden py-4 border-t border-gray-100 space-y-2">
+            <div className="pb-3"><SearchBar /></div>
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)}
-                className="block py-3 text-sm font-medium text-gray-600 hover:text-orange-500">
-                {link.label}
-              </Link>
+                className="block py-3 text-sm font-medium text-gray-600 hover:text-orange-500">{link.label}</Link>
             ))}
           </nav>
         )}
@@ -76,3 +68,4 @@ export default function Header() {
     </header>
   );
 }
+

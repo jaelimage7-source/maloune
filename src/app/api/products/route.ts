@@ -114,8 +114,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const locale = searchParams.get('locale') || 'fr';
     const cat = searchParams.get('cat') || '';
+    const search = searchParams.get('search') || '';
 
     const where: any = { isActive: true };
+    if (search) { where.translations = { some: { name: { contains: search, mode: 'insensitive' } } }; }
     if (cat && cat !== 'print-on-demand') {
       where.category = { slug: cat };
     }

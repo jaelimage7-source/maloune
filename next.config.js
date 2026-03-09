@@ -26,6 +26,7 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'cc-west-usa.oss-us-west-1.aliyuncs.com' },
       { protocol: 'https', hostname: '*.cjdropshipping.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
 };
