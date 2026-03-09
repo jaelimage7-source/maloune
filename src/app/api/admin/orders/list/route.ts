@@ -23,21 +23,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       count: orders.length,
-      orders: orders.map((o) => ({
-        id: o.id,
-        orderNumber: (o as any).orderNumber || o.id,
-        status: o.status,
-        total: (o as any).total || (o as any).amount || 0,
-        email: (o as any).email || (o as any).shippingEmail || (o as any).customerEmail || 'N/A',
-        name: [(o as any).shippingFirstName || (o as any).firstName, (o as any).shippingLastName || (o as any).lastName].filter(Boolean).join(' ') || 'N/A',
-        trackingNumber: (o as any).trackingNumber || null,
-        trackingUrl: (o as any).trackingUrl || null,
-        items: o.items.map((i: any) => ({
-          name: i.name || i.productName || 'Produit',
-          quantity: i.quantity,
-          price: i.price,
+      orders: orders.map((order: any) => ({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        customerEmail: order.customerEmail,
+        customerName: order.shippingCustomerName,
+        status: order.status,
+        total: Number(order.totalAmount),
+        currency: order.currency,
+        createdAt: order.createdAt,
+        note: order.note,
+        items: order.items.map((item: any) => ({
+          name: item.productName || 'Produit',
+          variant: item.variantName || null,
+          quantity: item.quantity,
+          price: Number(item.unitPrice),
+          sku: item.sku,
         })),
-        createdAt: o.createdAt,
       })),
     });
   } catch (error: any) {
