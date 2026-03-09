@@ -59,6 +59,9 @@ export async function POST(request: NextRequest) {
           name: item.name,
           price: item.price,
           quantity: item.quantity || 1,
+          productId: item.productId || undefined,
+          variantId: item.variantId || undefined,
+          image: item.image || undefined,
         })),
         shipping: {
           firstName: shipping.firstName || 'Client',

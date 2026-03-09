@@ -9,49 +9,87 @@ interface CJOrderResult {
 }
 
 /**
- * Check if an order item is from CJ Dropshipping
- * Items with cjVariantId or productId starting with a CJ product pattern
+ * Find CJ variant ID for an order item by:
+ * 1. Direct cjVariantId on the item
+ * 2. Lookup via productId -> ProductVariant
+ * 3. Lookup via product name -> ProductTranslation -> Product -> ProductVariant
  */
-function isCJItem(item: any): boolean {
-  return !!(item.cjVariantId || item.variantId || (item.productId && !item.productId.startsWith('printful-')));
+async function findCJVariantId(item: any): Promise<string | null> {
+  // 1. Direct
+  if (item.cjVariantId) return item.cjVariantId;
+  
+  // 2. Via productId
+  if (item.productId) {
+    const variant = await prisma.productVariant.findFirst({
+      where: { productId: item.productId, cjVariantId: { not: null } },
+      select: { cjVariantId: true },
+    });
+    if (variant?.cjVariantId) return variant.cjVariantId;
+  }
+  
+  // 3. Via product name matching
+  const productName = item.productName || item.name || '';
+  if (productName) {
+    const translation = await prisma.productTranslation.findFirst({
+      where: { name: { contains: productName.substring(0, 40), mode: 'insensitive' as any } },
+      select: { productId: true },
+    });
+    if (translation) {
+      const variant = await prisma.productVariant.findFirst({
+        where: { productId: translation.productId, cjVariantId: { not: null } },
+        select: { cjVariantId: true },
+      });
+      if (variant?.cjVariantId) return variant.cjVariantId;
+      
+      // Also check product-level cjProductId
+      const product = await prisma.product.findUnique({
+        where: { id: translation.productId },
+        select: { cjProductId: true },
+      });
+      if (product?.cjProductId) {
+        // Get first variant from CJ
+        const v = await prisma.productVariant.findFirst({
+          where: { productId: translation.productId },
+          select: { cjVariantId: true },
+        });
+        if (v?.cjVariantId) return v.cjVariantId;
+      }
+    }
+  }
+  
+  return null;
 }
 
-/**
- * Create a CJ Dropshipping order from a MALOUNE order
- */
 export async function processCJOrder(orderId: string): Promise<CJOrderResult> {
   try {
-    // Get order with items
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { items: true },
     });
 
-    if (!order) {
-      return { success: false, error: 'Commande introuvable' };
-    }
+    if (!order) return { success: false, error: 'Commande introuvable' };
 
-    // Filter CJ items
-    const cjItems = order.items.filter(isCJItem);
-    
-    if (cjItems.length === 0) {
-      return { success: false, error: 'Aucun article CJ dans cette commande' };
-    }
+    // Try to find CJ variant IDs for each item
+    const products: { vid: string; quantity: number; name: string }[] = [];
+    const unmatchedItems: string[] = [];
 
-    // Build CJ products array
-    const products = cjItems.map(item => ({
-      vid: item.cjVariantId || item.variantId || '',
-      quantity: item.quantity,
-    })).filter(p => p.vid);
+    for (const item of order.items) {
+      const vid = await findCJVariantId(item);
+      if (vid) {
+        products.push({ vid, quantity: item.quantity, name: item.productName });
+      } else {
+        unmatchedItems.push(item.productName);
+      }
+    }
 
     if (products.length === 0) {
-      // Fallback: try to find variants by product name/SKU
-      console.warn('No CJ variant IDs found for order', order.orderNumber);
-      return { success: false, error: 'Pas de variant CJ (vid) - commandez manuellement sur app.cjdropshipping.com' };
+      return { 
+        success: false, 
+        error: unmatchedItems.length > 0
+          ? `Pas de variant CJ pour: ${unmatchedItems.join(', ')}. Commandez manuellement sur app.cjdropshipping.com`
+          : 'Aucun article CJ dans cette commande'
+      };
     }
-
-    // Parse name
-    const nameParts = order.shippingCustomerName.split(' ');
 
     // Create CJ order
     const result = await cjClient.createOrder({
@@ -67,12 +105,11 @@ export async function processCJOrder(orderId: string): Promise<CJOrderResult> {
       shippingCountry: order.shippingCountry,
       shippingCountryCode: order.shippingCountryCode || 'FR',
       email: order.customerEmail,
-      remark: `Maloune order ${order.orderNumber}`,
-      products,
+      remark: `Maloune ${order.orderNumber}`,
+      products: products.map(p => ({ vid: p.vid, quantity: p.quantity })),
     });
 
     if (result.result && result.data) {
-      // Save CJ order ID to our DB
       const d = result.data as any;
       const cjOrderId = d.orderId || d.orderNum || '';
       const cjOrderNum = d.orderNum || d.orderId || '';
@@ -87,12 +124,9 @@ export async function processCJOrder(orderId: string): Promise<CJOrderResult> {
         },
       });
 
-      console.log(`CJ order created: ${cjOrderNum} for ${order.orderNumber}`);
       return { success: true, cjOrderId, cjOrderNum };
     } else {
-      const errorMsg = result.message || 'CJ API error';
-      console.error('CJ order failed:', errorMsg);
-      return { success: false, error: errorMsg };
+      return { success: false, error: result.message || 'CJ API error' };
     }
   } catch (error: any) {
     console.error('CJ order error:', error);
@@ -100,15 +134,9 @@ export async function processCJOrder(orderId: string): Promise<CJOrderResult> {
   }
 }
 
-/**
- * Get CJ tracking info for an order
- */
 export async function getCJTracking(cjOrderNum: string) {
   try {
     const result = await cjClient.getTrackingInfo(cjOrderNum);
     return result.data;
-  } catch (error) {
-    console.error('CJ tracking error:', error);
-    return null;
-  }
+  } catch { return null; }
 }

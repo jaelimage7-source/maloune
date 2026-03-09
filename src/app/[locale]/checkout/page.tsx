@@ -280,7 +280,7 @@ export default function CheckoutPage() {
                 {/* Hidden form for myPOS */}
                 <form ref={formRef} method="POST" action="/api/checkout" style={{ display: 'none' }}>
                   <input type="hidden" name="data" value={JSON.stringify({
-                    items: items.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
+                    items: items.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, productId: i.productId || undefined, variantId: i.variantId || undefined, image: i.image || undefined })),
                     locale,
                     shipping: form,
                   })} />
