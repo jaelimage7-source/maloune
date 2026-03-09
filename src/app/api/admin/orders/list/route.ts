@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
 
     const orders = await prisma.order.findMany({
-      ...(status ? { where: { status } } : {}),
+      ...(status ? { where: { status: status as any } } : {}),
       include: { items: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
