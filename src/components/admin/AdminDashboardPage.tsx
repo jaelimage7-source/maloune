@@ -18,9 +18,9 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   REFUNDED: { label: "Remboursée", color: "bg-gray-100 text-gray-700" },
 };
 
-function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: string; sub?: string; color: string }) {
+function StatCard({ icon: Icon, label, value, sub, color, onClick }: { icon: any; label: string; value: string; sub?: string; color: string; onClick?: () => void }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4">
+    <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
           <Icon className="w-5 h-5" />
@@ -171,6 +171,12 @@ function AdminDashboard() {
 
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
 
+  const goToOrders = (status?: string) => {
+    setStatusFilter(status || "ALL");
+    setSearch("");
+    setTab("orders");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -203,24 +209,24 @@ function AdminDashboard() {
         {tab === "dashboard" && stats && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <StatCard icon={ShoppingCart} label="Total commandes" value={String(stats.overview.totalOrders)} color="bg-blue-100 text-blue-600" />
-              <StatCard icon={DollarSign} label="Revenu total" value={fmt(stats.overview.totalRevenue)} color="bg-green-100 text-green-600" />
-              <StatCard icon={Users} label="Clients" value={String(stats.overview.totalCustomers)} color="bg-purple-100 text-purple-600" />
-              <StatCard icon={Clock} label="En attente" value={String(stats.overview.pendingOrders)} color="bg-yellow-100 text-yellow-600" />
+              <StatCard icon={ShoppingCart} label="Total commandes" value={String(stats.overview.totalOrders)} color="bg-blue-100 text-blue-600" onClick={() => goToOrders()} />
+              <StatCard icon={DollarSign} label="Revenu total" value={fmt(stats.overview.totalRevenue)} color="bg-green-100 text-green-600" onClick={() => goToOrders("PAID")} />
+              <StatCard icon={Users} label="Clients" value={String(stats.overview.totalCustomers)} color="bg-purple-100 text-purple-600" onClick={() => { setSearch(""); setTab("customers"); }} />
+              <StatCard icon={Clock} label="En attente" value={String(stats.overview.pendingOrders)} color="bg-yellow-100 text-yellow-600" onClick={() => goToOrders("PENDING")} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
                 <h3 className="text-sm font-semibold text-gray-500 mb-2">Aujourd'hui</h3>
                 <p className="text-2xl font-bold text-gray-900">{fmt(stats.today.revenue)}</p>
                 <p className="text-sm text-gray-400">{stats.today.orders} commande{stats.today.orders !== 1 ? "s" : ""}</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
                 <h3 className="text-sm font-semibold text-gray-500 mb-2">Cette semaine</h3>
                 <p className="text-2xl font-bold text-gray-900">{fmt(stats.week.revenue)}</p>
                 <p className="text-sm text-gray-400">{stats.week.orders} commandes</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
                 <h3 className="text-sm font-semibold text-gray-500 mb-2">Ce mois</h3>
                 <p className="text-2xl font-bold text-gray-900">{fmt(stats.month.revenue)}</p>
                 <p className="text-sm text-gray-400">{stats.month.orders} commandes</p>
@@ -228,26 +234,26 @@ function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-blue-50 rounded-xl p-4 text-center">
+              <div onClick={() => goToOrders("PAID")} className="bg-blue-50 rounded-xl p-4 text-center cursor-pointer hover:shadow-md hover:bg-blue-100 transition">
                 <p className="text-2xl font-bold text-blue-700">{stats.overview.paidOrders}</p>
                 <p className="text-xs text-blue-600">Payées</p>
               </div>
-              <div className="bg-indigo-50 rounded-xl p-4 text-center">
+              <div onClick={() => goToOrders("SHIPPED")} className="bg-indigo-50 rounded-xl p-4 text-center cursor-pointer hover:shadow-md hover:bg-indigo-100 transition">
                 <p className="text-2xl font-bold text-indigo-700">{stats.overview.shippedOrders}</p>
                 <p className="text-xs text-indigo-600">Expédiées</p>
               </div>
-              <div className="bg-yellow-50 rounded-xl p-4 text-center">
+              <div onClick={() => goToOrders("PENDING")} className="bg-yellow-50 rounded-xl p-4 text-center cursor-pointer hover:shadow-md hover:bg-yellow-100 transition">
                 <p className="text-2xl font-bold text-yellow-700">{stats.overview.pendingOrders}</p>
                 <p className="text-xs text-yellow-600">En attente</p>
               </div>
             </div>
 
             {stats.recentOrders?.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-100 p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Commandes récentes</h3>
+              <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center justify-between">Commandes récentes<button onClick={() => goToOrders()} className="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-3 h-3" /></button></h3>
                 <div className="space-y-2">
                   {stats.recentOrders.map((o: any) => (
-                    <div key={o.orderNumber} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <div key={o.orderNumber} onClick={() => goToOrders()} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2 transition">
                       <div>
                         <span className="font-medium text-gray-900 text-sm">{o.orderNumber}</span>
                         <span className="text-xs text-gray-400 ml-2">{o.customerEmail}</span>
