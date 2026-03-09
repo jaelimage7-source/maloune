@@ -1,426 +1,534 @@
-'use client';
-import AdminGuard from '@/components/auth/AdminGuard';
-import { useState } from 'react';
-import { Search, Package, Check, AlertCircle, Loader2, Plus, Eye, Upload, X, Image as ImageIcon } from 'lucide-react';
-import Link from 'next/link';
+"use client";
+import AdminGuard from "@/components/auth/AdminGuard";
+import { useState, useEffect, useCallback } from "react";
+import {
+  BarChart3, Package, Users, ShoppingCart, TrendingUp, Clock, CheckCircle,
+  Truck, XCircle, Search, ChevronRight, RefreshCw, Loader2, Plus, Eye,
+  Upload, X, Image as ImageIcon, Edit, DollarSign, AlertCircle, Check
+} from "lucide-react";
 
-interface Product {
-  name: string;
-  image: string;
-  costPrice: number;
-  sellPrice: number;
-  category: string;
-  description: string;
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
+  PENDING: { label: "En attente", color: "bg-yellow-100 text-yellow-700" },
+  PAID: { label: "Payée", color: "bg-blue-100 text-blue-700" },
+  PROCESSING: { label: "Préparation", color: "bg-purple-100 text-purple-700" },
+  SHIPPED: { label: "Expédiée", color: "bg-indigo-100 text-indigo-700" },
+  DELIVERED: { label: "Livrée", color: "bg-green-100 text-green-700" },
+  CANCELLED: { label: "Annulée", color: "bg-red-100 text-red-700" },
+  REFUNDED: { label: "Remboursée", color: "bg-gray-100 text-gray-700" },
+};
+
+function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: string; sub?: string; color: string }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4">
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">{label}</p>
+          <p className="text-lg font-bold text-gray-900">{value}</p>
+          {sub && <p className="text-xs text-gray-400">{sub}</p>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function AdminPageContent() {
-  const [tab, setTab] = useState<'manual' | 'cj'>('manual');
+function AdminDashboard() {
+  const [tab, setTab] = useState<"dashboard" | "orders" | "customers" | "products">("dashboard");
+  const [stats, setStats] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [orderEmails, setOrderEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [editStatus, setEditStatus] = useState("");
+  const [editTracking, setEditTracking] = useState("");
+  const [editCarrier, setEditCarrier] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  // Manual add state
-  const [product, setProduct] = useState<Product>({
-    name: '',
-    image: '',
-    costPrice: 0,
-    sellPrice: 0,
-    category: 'Maison & Déco',
-    description: '',
-  });
+  // Products state (keep existing)
+  const [prodTab, setProdTab] = useState<"manual" | "cj">("manual");
+  const [product, setProduct] = useState({ name: "", image: "", costPrice: 0, sellPrice: 0, category: "Maison & Déco", description: "" });
+  const [prodLoading, setProdLoading] = useState(false);
+  const [prodError, setProdError] = useState("");
+  const [prodSuccess, setProdSuccess] = useState("");
+  const [cjQuery, setCjQuery] = useState("");
+  const [cjResults, setCjResults] = useState<any[]>([]);
+  const [cjImported, setCjImported] = useState<string[]>([]);
+  const [cjMargin, setCjMargin] = useState(2.5);
 
-  // CJ search state
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [imported, setImported] = useState<string[]>([]);
-  const [margin, setMargin] = useState(2.5);
+  const categories = ["Maison & Déco", "Beauté & Santé", "Tech & Gadgets", "Animaux", "Mode & Accessoires", "Sport & Loisirs", "Bébé & Enfants", "Auto & Moto"];
 
-  const categories = [
-    'Maison & Déco',
-    'Beauté & Santé',
-    'Tech & Gadgets',
-    'Animaux',
-    'Mode & Accessoires',
-    'Sport & Loisirs',
-    'Bébé & Enfants',
-    'Auto & Moto',
-  ];
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/stats");
+      if (res.ok) setStats(await res.json());
+    } catch { /* */ }
+  }, []);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      if (search) params.set("search", search);
+      params.set("limit", "50");
+      const res = await fetch(`/api/admin/orders?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.orders || []);
+        setOrderTotal(data.total || 0);
+      }
+    } catch { /* */ }
+    setLoading(false);
+  }, [statusFilter, search]);
+
+  const fetchCustomers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      const res = await fetch(`/api/admin/customers?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCustomers(data.customers || []);
+        setOrderEmails(data.orderEmails || []);
+      }
+    } catch { /* */ }
+    setLoading(false);
+  }, [search]);
+
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+  useEffect(() => { if (tab === "orders") fetchOrders(); }, [tab, fetchOrders]);
+  useEffect(() => { if (tab === "customers") fetchCustomers(); }, [tab, fetchCustomers]);
+
+  const updateOrder = async () => {
+    if (!selectedOrder) return;
+    setSaving(true);
+    try {
+      const body: any = { orderId: selectedOrder.id };
+      if (editStatus && editStatus !== selectedOrder.status) body.status = editStatus;
+      if (editTracking) { body.trackingNumber = editTracking; body.carrierName = editCarrier; }
+      if (editNote) body.internalNote = editNote;
+      const res = await fetch("/api/admin/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setSelectedOrder(null);
+        fetchOrders();
+      }
+    } catch { /* */ }
+    setSaving(false);
+  };
 
   const saveProduct = async () => {
-    if (!product.name || !product.sellPrice) {
-      setError('Nom et prix de vente sont requis');
-      return;
-    }
-    setLoading(true);
-    setError('');
+    if (!product.name || !product.sellPrice) { setProdError("Nom et prix requis"); return; }
+    setProdLoading(true); setProdError(""); setProdSuccess("");
     try {
-      const res = await fetch('/api/cj/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cjProductId: null,
-          name: product.name,
-          image: product.image,
-          costPrice: product.costPrice,
-          sellPrice: product.sellPrice,
-          category: product.category,
-          weight: 0,
-          description: product.description,
-        }),
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setSuccess(product.name + ' ajouté avec succès !');
-      setProduct({ name: '', image: '', costPrice: 0, sellPrice: 0, category: 'Maison & Déco', description: '' });
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) {
+        setProdSuccess("Produit ajouté");
+        setProduct({ name: "", image: "", costPrice: 0, sellPrice: 0, category: "Maison & Déco", description: "" });
+      } else setProdError("Erreur");
+    } catch { setProdError("Erreur réseau"); }
+    setProdLoading(false);
   };
 
-  const searchCJ = async () => {
-    if (!query.trim()) return;
-    setLoading(true);
-    setError('');
-    setResults([]);
+  const searchCj = async () => {
+    if (!cjQuery) return;
+    setProdLoading(true);
     try {
-      const res = await fetch('/api/cj/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setResults(data.products || []);
-      if (!data.products?.length) setError('Aucun produit trouvé');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch(`/api/cj/search?q=${encodeURIComponent(cjQuery)}`);
+      if (res.ok) { const d = await res.json(); setCjResults(d.products || d.data || []); }
+    } catch { /* */ }
+    setProdLoading(false);
   };
 
-  const importCJ = async (p: any) => {
+  const importCj = async (p: any) => {
+    setProdLoading(true);
     try {
-      const res = await fetch('/api/cj/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cjProductId: p.pid,
-          name: p.productName,
-          image: p.productImage,
-          costPrice: p.sellPrice,
-          sellPrice: Math.ceil(p.sellPrice * margin * 100) / 100,
-          category: p.categoryName,
-          weight: p.productWeight,
-        }),
+      const res = await fetch("/api/cj/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": "" },
+        body: JSON.stringify({ product: p, margin: cjMargin }),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setImported((prev) => [...prev, p.pid]);
-      setSuccess(p.productName + ' importé !');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.message);
-      setTimeout(() => setError(''), 5000);
-    }
+      if (res.ok) setCjImported(prev => [...prev, p.pid || p.id]);
+    } catch { /* */ }
+    setProdLoading(false);
   };
+
+  const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">🛍️ Admin — Gestion Produits</h1>
-            <p className="text-sm text-gray-500 mt-1">Ajoutez des produits à votre boutique</p>
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold text-gray-900">Maloune Admin</h1>
+            <button onClick={() => { fetchStats(); if (tab === "orders") fetchOrders(); if (tab === "customers") fetchCustomers(); }}
+              className="text-gray-400 hover:text-gray-600 p-2"><RefreshCw className="w-4 h-4" /></button>
           </div>
-          <Link
-            href="/fr/products"
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-          >
-            <Eye className="w-4 h-4" /> Voir la boutique
-          </Link>
+          <div className="flex gap-1 mt-2 overflow-x-auto">
+            {([
+              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+              { id: "orders", label: "Commandes", icon: ShoppingCart },
+              { id: "customers", label: "Clients", icon: Users },
+              { id: "products", label: "Produits", icon: Package },
+            ] as const).map(t => (
+              <button key={t.id} onClick={() => { setTab(t.id); setSearch(""); }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${tab === t.id ? "bg-orange-100 text-orange-700" : "text-gray-500 hover:bg-gray-100"}`}>
+                <t.icon className="w-4 h-4" /> {t.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Alerts */}
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {error}
-            <button onClick={() => setError('')} className="ml-auto"><X className="w-4 h-4" /></button>
-          </div>
-        )}
-        {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
-            <Check className="w-4 h-4 flex-shrink-0" />
-            {success}
-          </div>
-        )}
+      <div className="max-w-7xl mx-auto px-4 py-6">
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setTab('manual')}
-            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'manual'
-                ? 'bg-orange-500 text-white'
-                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Plus className="w-4 h-4 inline mr-1" /> Ajouter manuellement
-          </button>
-          <button
-            onClick={() => setTab('cj')}
-            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'cj'
-                ? 'bg-orange-500 text-white'
-                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Search className="w-4 h-4 inline mr-1" /> Recherche CJ API
-          </button>
-        </div>
+        {/* DASHBOARD TAB */}
+        {tab === "dashboard" && stats && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard icon={ShoppingCart} label="Total commandes" value={String(stats.overview.totalOrders)} color="bg-blue-100 text-blue-600" />
+              <StatCard icon={DollarSign} label="Revenu total" value={fmt(stats.overview.totalRevenue)} color="bg-green-100 text-green-600" />
+              <StatCard icon={Users} label="Clients" value={String(stats.overview.totalCustomers)} color="bg-purple-100 text-purple-600" />
+              <StatCard icon={Clock} label="En attente" value={String(stats.overview.pendingOrders)} color="bg-yellow-100 text-yellow-600" />
+            </div>
 
-        {/* Manual Add Tab */}
-        {tab === 'manual' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Ajouter un produit</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Trouvez un produit sur{' '}
-              <a href="https://cjdropshipping.com" target="_blank" className="text-orange-500 underline">
-                cjdropshipping.com
-              </a>
-              , puis copiez les infos ici.
-            </p>
-
-            <div className="space-y-4">
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit *</label>
-                <input
-                  value={product.name}
-                  onChange={(e) => setProduct({ ...product, name: e.target.value })}
-                  placeholder="Ex: Lampe Sunset Projection LED"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <h3 className="text-sm font-semibold text-gray-500 mb-2">Aujourd'hui</h3>
+                <p className="text-2xl font-bold text-gray-900">{fmt(stats.today.revenue)}</p>
+                <p className="text-sm text-gray-400">{stats.today.orders} commande{stats.today.orders !== 1 ? "s" : ""}</p>
               </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <h3 className="text-sm font-semibold text-gray-500 mb-2">Cette semaine</h3>
+                <p className="text-2xl font-bold text-gray-900">{fmt(stats.week.revenue)}</p>
+                <p className="text-sm text-gray-400">{stats.week.orders} commandes</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <h3 className="text-sm font-semibold text-gray-500 mb-2">Ce mois</h3>
+                <p className="text-2xl font-bold text-gray-900">{fmt(stats.month.revenue)}</p>
+                <p className="text-sm text-gray-400">{stats.month.orders} commandes</p>
+              </div>
+            </div>
 
-              {/* Image URL */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">URL de l&apos;image</label>
-                <div className="flex gap-3">
-                  <input
-                    value={product.image}
-                    onChange={(e) => setProduct({ ...product, image: e.target.value })}
-                    placeholder="Collez le lien de l'image du produit CJ"
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                  {product.image && (
-                    <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
-                      <img src={product.image} alt="" className="w-full h-full object-cover" />
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-blue-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-blue-700">{stats.overview.paidOrders}</p>
+                <p className="text-xs text-blue-600">Payées</p>
+              </div>
+              <div className="bg-indigo-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-indigo-700">{stats.overview.shippedOrders}</p>
+                <p className="text-xs text-indigo-600">Expédiées</p>
+              </div>
+              <div className="bg-yellow-50 rounded-xl p-4 text-center">
+                <p className="text-2xl font-bold text-yellow-700">{stats.overview.pendingOrders}</p>
+                <p className="text-xs text-yellow-600">En attente</p>
+              </div>
+            </div>
+
+            {stats.recentOrders?.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Commandes récentes</h3>
+                <div className="space-y-2">
+                  {stats.recentOrders.map((o: any) => (
+                    <div key={o.orderNumber} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                      <div>
+                        <span className="font-medium text-gray-900 text-sm">{o.orderNumber}</span>
+                        <span className="text-xs text-gray-400 ml-2">{o.customerEmail}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_MAP[o.status]?.color || "bg-gray-100"}`}>
+                          {STATUS_MAP[o.status]?.label || o.status}
+                        </span>
+                        <span className="font-bold text-sm">{fmt(Number(o.totalAmount))}</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Clic droit sur l&apos;image CJ → &quot;Copier l&apos;adresse de l&apos;image&quot;
-                </p>
-              </div>
-
-              {/* Prices */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix coût CJ ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={product.costPrice || ''}
-                    onChange={(e) => setProduct({ ...product, costPrice: Number(e.target.value) })}
-                    placeholder="Ex: 8.50"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix de vente (€) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={product.sellPrice || ''}
-                    onChange={(e) => setProduct({ ...product, sellPrice: Number(e.target.value) })}
-                    placeholder="Ex: 24.99"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-              </div>
-
-              {/* Profit preview */}
-              {product.costPrice > 0 && product.sellPrice > 0 && (
-                <div className="bg-green-50 rounded-lg p-3 flex items-center justify-between">
-                  <span className="text-sm text-green-700">Profit estimé par vente :</span>
-                  <span className="font-bold text-green-700">
-                    +{(product.sellPrice - product.costPrice).toFixed(2)} € ({((product.sellPrice / product.costPrice - 1) * 100).toFixed(0)}% marge)
-                  </span>
-                </div>
-              )}
-
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select
-                  value={product.category}
-                  onChange={(e) => setProduct({ ...product, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  {categories.map((c) => (
-                    <option key={c} value={c}>{c}</option>
                   ))}
-                </select>
+                </div>
               </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={product.description}
-                  onChange={(e) => setProduct({ ...product, description: e.target.value })}
-                  placeholder="Description courte du produit..."
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-
-              {/* Submit */}
-              <button
-                onClick={saveProduct}
-                disabled={loading}
-                className="w-full bg-orange-500 text-white py-3 rounded-lg font-medium hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="w-5 h-5" /> Ajouter le produit
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Help section */}
-            <div className="mt-8 bg-orange-50 rounded-xl p-5">
-              <h3 className="font-semibold text-orange-900 mb-2">💡 Comment trouver des produits ?</h3>
-              <ol className="text-sm text-orange-800 space-y-2">
-                <li>1. Allez sur <a href="https://cjdropshipping.com" target="_blank" className="underline font-medium">cjdropshipping.com</a></li>
-                <li>2. Cherchez un produit (ex: &quot;sunset lamp&quot;, &quot;galaxy projector&quot;)</li>
-                <li>3. Notez le prix CJ (coût) et choisissez votre prix de vente (2-3x le coût)</li>
-                <li>4. Clic droit sur l&apos;image → &quot;Copier l&apos;adresse de l&apos;image&quot;</li>
-                <li>5. Collez tout ici et cliquez &quot;Ajouter&quot;</li>
-              </ol>
-            </div>
+            )}
           </div>
         )}
+        {tab === "dashboard" && !stats && (
+          <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>
+        )}
 
-        {/* CJ API Tab */}
-        {tab === 'cj' && (
+        {/* ORDERS TAB */}
+        {tab === "orders" && (
           <div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
-              <p className="text-sm text-yellow-800">
-                <strong>Note :</strong> La recherche CJ nécessite une API Key. Si vous n&apos;avez pas encore de clé,
-                utilisez l&apos;onglet &quot;Ajouter manuellement&quot; ci-dessus.
-              </p>
-            </div>
-
-            <div className="flex gap-3 mb-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && searchCJ()}
-                  placeholder="Rechercher un produit CJ..."
-                  className="w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-              <button
-                onClick={searchCJ}
-                disabled={loading}
-                className="bg-orange-500 text-white px-6 py-3.5 rounded-xl font-medium hover:bg-orange-600 disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Rechercher'}
-              </button>
-            </div>
-
             <div className="flex flex-wrap gap-2 mb-4">
-              {['sunset lamp', 'galaxy projector', 'bluetooth earbuds', 'LED face mask', 'posture corrector', 'ring light'].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setQuery(s)}
-                  className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs text-gray-600 hover:border-orange-300 hover:text-orange-600"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-900 text-sm">Marge : <span className="text-orange-600">x{margin.toFixed(1)}</span></p>
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input type="text" placeholder="Rechercher..." value={search}
+                  onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === "Enter" && fetchOrders()}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
               </div>
-              <input type="range" min={1.5} max={5} step={0.1} value={margin} onChange={(e) => setMargin(Number(e.target.value))} className="w-48 accent-orange-500" />
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                <option value="ALL">Tous</option>
+                {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
             </div>
 
-            {results.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {results.map((p) => {
-                  const sell = Math.ceil(p.sellPrice * margin * 100) / 100;
-                  const done = imported.includes(p.pid);
-                  return (
-                    <div key={p.pid} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md">
-                      <div className="h-48 bg-gray-100 flex items-center justify-center">
-                        {p.productImage ? <img src={p.productImage} alt="" className="h-full w-full object-contain" /> : <Package className="w-12 h-12 text-gray-300" />}
+            <p className="text-sm text-gray-400 mb-3">{orderTotal} commande{orderTotal !== 1 ? "s" : ""}</p>
+
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+            ) : (
+              <div className="space-y-2">
+                {orders.map((o: any) => (
+                  <button key={o.id} onClick={() => { setSelectedOrder(o); setEditStatus(o.status); setEditTracking(""); setEditCarrier(""); setEditNote(o.internalNote || ""); }}
+                    className="w-full bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition text-left">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-gray-900 text-sm">{o.orderNumber}</span>
+                        <span className="text-xs text-gray-400 ml-2">{o.customerEmail || "—"}</span>
                       </div>
-                      <div className="p-4">
-                        <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-3">{p.productName}</h3>
-                        <div className="grid grid-cols-3 gap-2 text-center mb-3">
-                          <div className="bg-gray-50 rounded-lg p-2"><p className="text-[10px] text-gray-500">Coût</p><p className="font-bold text-sm">${p.sellPrice?.toFixed(2)}</p></div>
-                          <div className="bg-orange-50 rounded-lg p-2"><p className="text-[10px] text-orange-600">Vente</p><p className="font-bold text-orange-600 text-sm">{sell.toFixed(2)}€</p></div>
-                          <div className="bg-green-50 rounded-lg p-2"><p className="text-[10px] text-green-600">Profit</p><p className="font-bold text-green-600 text-sm">+{(sell - p.sellPrice).toFixed(2)}€</p></div>
+                      <span className="font-bold text-gray-900">{fmt(Number(o.totalAmount))}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_MAP[o.status]?.color || "bg-gray-100"}`}>
+                        {STATUS_MAP[o.status]?.label || o.status}
+                      </span>
+                      <span className="text-xs text-gray-400">{new Date(o.createdAt).toLocaleDateString("fr-FR")} {new Date(o.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">{o.shippingCustomerName} — {o.items?.length || 0} article{(o.items?.length || 0) !== 1 ? "s" : ""}</div>
+                  </button>
+                ))}
+                {orders.length === 0 && <p className="text-center text-gray-400 py-10">Aucune commande</p>}
+              </div>
+            )}
+
+            {/* Order detail modal */}
+            {selectedOrder && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedOrder(null)}>
+                <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold">{selectedOrder.orderNumber}</h2>
+                    <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+                  </div>
+
+                  <div className="space-y-3 text-sm">
+                    <div><span className="text-gray-500">Client:</span> <span className="font-medium">{selectedOrder.shippingCustomerName}</span></div>
+                    <div><span className="text-gray-500">Email:</span> <span className="font-medium">{selectedOrder.customerEmail}</span></div>
+                    <div><span className="text-gray-500">Adresse:</span> <span className="font-medium">{selectedOrder.shippingAddress}, {selectedOrder.shippingCity} {selectedOrder.shippingPostalCode}</span></div>
+                    <div><span className="text-gray-500">Date:</span> <span className="font-medium">{new Date(selectedOrder.createdAt).toLocaleString("fr-FR")}</span></div>
+
+                    <div className="border-t border-gray-100 pt-3">
+                      <h3 className="font-semibold mb-2">Articles</h3>
+                      {selectedOrder.items?.map((item: any) => (
+                        <div key={item.id} className="flex justify-between py-1">
+                          <span>{item.productName} x{item.quantity}</span>
+                          <span className="font-medium">{fmt(Number(item.totalPrice))}</span>
                         </div>
-                        <button
-                          onClick={() => importCJ(p)}
-                          disabled={done}
-                          className={`w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-1 ${done ? 'bg-green-100 text-green-700' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
-                        >
-                          {done ? <><Check className="w-4 h-4" /> Importé</> : <><Plus className="w-4 h-4" /> Importer</>}
-                        </button>
+                      ))}
+                      <div className="flex justify-between font-bold mt-2 pt-2 border-t border-gray-200">
+                        <span>Total</span>
+                        <span>{fmt(Number(selectedOrder.totalAmount))}</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
 
-            {!loading && results.length === 0 && (
-              <div className="text-center py-16">
-                <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900">Recherchez des produits CJ</h3>
+                    <div className="border-t border-gray-100 pt-3 space-y-2">
+                      <h3 className="font-semibold">Modifier</h3>
+                      <div>
+                        <label className="text-xs text-gray-500">Statut</label>
+                        <select value={editStatus} onChange={e => setEditStatus(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg text-sm mt-1">
+                          {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Numéro de suivi</label>
+                        <input type="text" value={editTracking} onChange={e => setEditTracking(e.target.value)}
+                          placeholder="Tracking number" className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Transporteur</label>
+                        <input type="text" value={editCarrier} onChange={e => setEditCarrier(e.target.value)}
+                          placeholder="Colissimo, DPD, etc." className="w-full px-3 py-2 border rounded-lg text-sm mt-1" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Note interne</label>
+                        <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
+                          placeholder="Note visible uniquement par l'admin" className="w-full px-3 py-2 border rounded-lg text-sm mt-1" rows={2} />
+                      </div>
+                      <button onClick={updateOrder} disabled={saving}
+                        className="w-full py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2">
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Enregistrer
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         )}
+
+        {/* CUSTOMERS TAB */}
+        {tab === "customers" && (
+          <div>
+            <div className="relative mb-4">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" placeholder="Rechercher par email, nom..." value={search}
+                onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === "Enter" && fetchCustomers()}
+                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+            ) : (
+              <>
+                {customers.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-500 mb-2">Clients inscrits ({customers.length})</h3>
+                    <div className="space-y-2">
+                      {customers.map((c: any) => (
+                        <div key={c.id} className="bg-white rounded-xl border border-gray-100 p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="font-semibold text-gray-900 text-sm">{c.firstName || ""} {c.lastName || ""}</span>
+                              <span className="text-xs text-gray-400 ml-2">{c.email}</span>
+                            </div>
+                            <span className="text-sm font-medium text-gray-600">{c._count.orders} cmd</span>
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            Inscrit {new Date(c.createdAt).toLocaleDateString("fr-FR")}
+                            {c.lastLoginAt && <> — Dernière connexion {new Date(c.lastLoginAt).toLocaleDateString("fr-FR")}</>}
+                            {c.phone && <> — {c.phone}</>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {orderEmails.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-500 mb-2">Tous les acheteurs par email</h3>
+                    <div className="space-y-2">
+                      {orderEmails.map((e: any) => (
+                        <div key={e.customerEmail} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">{e.customerEmail}</span>
+                          <div className="text-right">
+                            <span className="text-sm font-bold text-gray-900">{fmt(Number(e._sum?.totalAmount || 0))}</span>
+                            <span className="text-xs text-gray-400 ml-2">{e._count.id} cmd</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {customers.length === 0 && orderEmails.length === 0 && (
+                  <p className="text-center text-gray-400 py-10">Aucun client</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* PRODUCTS TAB */}
+        {tab === "products" && (
+          <div>
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => setProdTab("manual")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${prodTab === "manual" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"}`}>
+                <Plus className="w-4 h-4 inline mr-1" /> Ajouter
+              </button>
+              <button onClick={() => setProdTab("cj")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${prodTab === "cj" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"}`}>
+                <Search className="w-4 h-4 inline mr-1" /> CJ Dropshipping
+              </button>
+            </div>
+
+            {prodError && <div className="bg-red-50 text-red-600 text-sm rounded-lg p-3 mb-3">{prodError}</div>}
+            {prodSuccess && <div className="bg-green-50 text-green-600 text-sm rounded-lg p-3 mb-3">{prodSuccess}</div>}
+
+            {prodTab === "manual" && (
+              <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-3">
+                <input type="text" placeholder="Nom du produit" value={product.name}
+                  onChange={e => setProduct({ ...product, name: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg text-sm" />
+                <input type="text" placeholder="URL image" value={product.image}
+                  onChange={e => setProduct({ ...product, image: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg text-sm" />
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="number" placeholder="Prix coûtant" value={product.costPrice || ""}
+                    onChange={e => setProduct({ ...product, costPrice: parseFloat(e.target.value) || 0 })}
+                    className="px-4 py-2 border rounded-lg text-sm" />
+                  <input type="number" placeholder="Prix de vente" value={product.sellPrice || ""}
+                    onChange={e => setProduct({ ...product, sellPrice: parseFloat(e.target.value) || 0 })}
+                    className="px-4 py-2 border rounded-lg text-sm" />
+                </div>
+                <select value={product.category} onChange={e => setProduct({ ...product, category: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg text-sm">
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <textarea placeholder="Description" value={product.description}
+                  onChange={e => setProduct({ ...product, description: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg text-sm" rows={3} />
+                <button onClick={saveProduct} disabled={prodLoading}
+                  className="w-full py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 disabled:opacity-50">
+                  {prodLoading ? "Enregistrement..." : "Ajouter le produit"}
+                </button>
+              </div>
+            )}
+
+            {prodTab === "cj" && (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Rechercher sur CJ..." value={cjQuery}
+                    onChange={e => setCjQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchCj()}
+                    className="flex-1 px-4 py-2 border rounded-lg text-sm" />
+                  <button onClick={searchCj} disabled={prodLoading}
+                    className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium">
+                    {prodLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Chercher"}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">Marge:</span>
+                  <input type="number" value={cjMargin} onChange={e => setCjMargin(parseFloat(e.target.value) || 2)}
+                    className="w-16 px-2 py-1 border rounded text-sm" step="0.5" />
+                  <span className="text-gray-400">x</span>
+                </div>
+                {cjResults.map((p: any) => (
+                  <div key={p.pid || p.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3">
+                    {p.productImage && <img src={p.productImage} alt="" className="w-14 h-14 rounded object-cover" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{p.productNameEn || p.name}</p>
+                      <p className="text-xs text-gray-500">{fmt(Number(p.sellPrice || 0))} → {fmt(Number(p.sellPrice || 0) * cjMargin)}</p>
+                    </div>
+                    <button onClick={() => importCj(p)} disabled={cjImported.includes(p.pid || p.id)}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium ${cjImported.includes(p.pid || p.id) ? "bg-green-100 text-green-600" : "bg-orange-500 text-white"}`}>
+                      {cjImported.includes(p.pid || p.id) ? "Importé" : "Importer"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
-    </main>
+    </div>
   );
 }
 
-
 export default function AdminPage() {
-  return (
-    <AdminGuard>
-      <AdminPageContent />
-    </AdminGuard>
-  );
+  return <AdminGuard><AdminDashboard /></AdminGuard>;
 }
