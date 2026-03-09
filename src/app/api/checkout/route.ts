@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { createOrder } from '@/lib/services/order.service';
 
 function getPrivateKey(): string {
   const b64Key = process.env.MYPOS_PRIVATE_KEY_B64;
@@ -17,17 +18,29 @@ export async function POST(request: NextRequest) {
   try {
     let items: { name: string; price: number; quantity: number }[];
     let locale = 'fr';
+    let shipping: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+      address?: string;
+      city?: string;
+      zip?: string;
+      country?: string;
+    } = {};
     
     const contentType = request.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       const json = await request.json();
       items = json.items;
       locale = json.locale || 'fr';
+      shipping = json.shipping || {};
     } else {
       const formData = await request.formData();
       const data = JSON.parse(formData.get('data') as string);
       items = data.items;
       locale = data.locale || 'fr';
+      shipping = data.shipping || {};
     }
 
     if (!items || !items.length) return new Response('No items', { status: 400 });
@@ -36,12 +49,39 @@ export async function POST(request: NextRequest) {
     const privateKey = getPrivateKey();
     const publicCert = getPublicCert();
     const isLive = process.env.MYPOS_LIVE === 'true';
+    const totalAmount = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+
+    // Save order to DB BEFORE redirecting to myPOS
+    try {
+      await createOrder({
+        orderId,
+        items: items.map(item => ({
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity || 1,
+        })),
+        shipping: {
+          firstName: shipping.firstName || 'Client',
+          lastName: shipping.lastName || '',
+          email: shipping.email || '',
+          phone: shipping.phone || '',
+          address: shipping.address || '',
+          city: shipping.city || '',
+          zip: shipping.zip || '',
+          country: shipping.country || 'FR',
+        },
+        locale,
+        totalAmount,
+        currency: 'EUR',
+      });
+      console.log('Order saved:', orderId, 'amount:', totalAmount, 'email:', shipping.email);
+    } catch (dbErr) {
+      console.error('DB save failed (continuing to payment):', dbErr);
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const MyPOS = require('mypos-js');
     
-    // ALWAYS pass true for production to avoid file loading
-    // Then override ipcApiUrl for test mode
     const mypos = new MyPOS(true, {
       keyIndex: parseInt(process.env.MYPOS_KEY_INDEX || '1'),
       sid: process.env.MYPOS_SID || '1306645',
