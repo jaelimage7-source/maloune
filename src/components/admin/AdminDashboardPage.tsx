@@ -216,17 +216,17 @@ function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
-                <h3 className="text-sm font-semibold text-gray-500 mb-2">Aujourd'hui</h3>
+              <div onClick={() => goToOrders()} className="bg-white rounded-xl border border-gray-100 p-4 cursor-pointer hover:shadow-md hover:border-orange-200 transition">
+                <h3 className="text-sm font-semibold text-gray-500 mb-2">{"Aujourd'hui"}</h3>
                 <p className="text-2xl font-bold text-gray-900">{fmt(stats.today.revenue)}</p>
                 <p className="text-sm text-gray-400">{stats.today.orders} commande{stats.today.orders !== 1 ? "s" : ""}</p>
               </div>
-              <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
+              <div onClick={() => goToOrders()} className="bg-white rounded-xl border border-gray-100 p-4 cursor-pointer hover:shadow-md hover:border-orange-200 transition">
                 <h3 className="text-sm font-semibold text-gray-500 mb-2">Cette semaine</h3>
                 <p className="text-2xl font-bold text-gray-900">{fmt(stats.week.revenue)}</p>
                 <p className="text-sm text-gray-400">{stats.week.orders} commandes</p>
               </div>
-              <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
+              <div onClick={() => goToOrders()} className="bg-white rounded-xl border border-gray-100 p-4 cursor-pointer hover:shadow-md hover:border-orange-200 transition">
                 <h3 className="text-sm font-semibold text-gray-500 mb-2">Ce mois</h3>
                 <p className="text-2xl font-bold text-gray-900">{fmt(stats.month.revenue)}</p>
                 <p className="text-sm text-gray-400">{stats.month.orders} commandes</p>
@@ -249,7 +249,7 @@ function AdminDashboard() {
             </div>
 
             {stats.recentOrders?.length > 0 && (
-              <div onClick={onClick} className={`bg-white rounded-xl border border-gray-100 p-4 ${onClick ? "cursor-pointer hover:shadow-md hover:border-orange-200 transition" : ""}`}>
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center justify-between">Commandes récentes<button onClick={() => goToOrders()} className="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1">Voir tout <ChevronRight className="w-3 h-3" /></button></h3>
                 <div className="space-y-2">
                   {stats.recentOrders.map((o: any) => (
