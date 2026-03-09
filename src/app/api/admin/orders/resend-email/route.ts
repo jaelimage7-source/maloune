@@ -25,33 +25,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 });
     }
 
-    const customerEmail = order.email || order.shippingEmail || '';
+    const o = order as any;
+    const customerEmail = o.email || o.shippingEmail || o.customerEmail || '';
     if (!customerEmail) {
       return NextResponse.json({ error: 'Pas d\'email client pour cette commande' }, { status: 400 });
     }
 
-    // Send confirmation email
+    const orderNum = o.orderNumber || o.id;
+    const amount = String(o.total || o.amount || '0');
+
     const customerResult = await sendOrderConfirmation({
       to: customerEmail,
-      orderNumber: order.orderNumber || order.id,
-      amount: order.total?.toString() || '0',
+      orderNumber: orderNum,
+      amount,
       items: order.items.map((item: any) => ({
         name: item.name || item.productName || 'Produit',
         quantity: item.quantity || 1,
-        price: item.price?.toString() || '0',
+        price: String(item.price || '0'),
       })),
     });
 
-    // Also notify admin
     const adminResult = await sendAdminNotification({
-      orderNumber: order.orderNumber || order.id,
-      amount: order.total?.toString() || '0',
+      orderNumber: orderNum,
+      amount,
       customerEmail,
     });
 
     return NextResponse.json({
       success: true,
-      order: { id: order.id, orderNumber: order.orderNumber, email: customerEmail },
+      order: { id: order.id, orderNumber: orderNum, email: customerEmail },
       customer: customerResult,
       admin: adminResult,
     });
