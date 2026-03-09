@@ -58,10 +58,17 @@ class CJDropshippingClient {
     const res = await fetch(url, options);
     const data: CJResponse<T> = await res.json();
 
-    // Token expiré → re-auth
-    if (data.code === 1600200) {
+    // Token expiré ou non connecté → re-auth
+    if (data.code === 1600200 || data.result === false && (data.message || '').toLowerCase().includes('not logged in')) {
+      console.log('CJ token expired, re-authenticating...');
+      this.accessToken = null;
       this.accessToken = await this.getAccessToken();
-      return this.request<T>(endpoint, method, body);
+      // Retry once
+      const retryRes = await fetch(url, {
+        ...options,
+        headers: { 'CJ-Access-Token': this.accessToken!, 'Content-Type': 'application/json' },
+      });
+      return retryRes.json();
     }
 
     return data;
