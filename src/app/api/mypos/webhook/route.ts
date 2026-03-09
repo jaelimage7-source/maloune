@@ -142,6 +142,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 5. Process CJ Dropshipping items (auto-order)
+    if (order) {
+      try {
+        const cjResult = await processCJOrder(order.id);
+        if (cjResult.success) {
+          console.log('CJ order created:', cjResult.cjOrderNum, 'for', orderNumber);
+        } else {
+          console.log('CJ auto-order skipped:', cjResult.error);
+        }
+      } catch (e) {
+        console.error('CJ auto-order error:', e);
+      }
+    }
+
     return new NextResponse('OK', { status: 200, headers: { 'Content-Type': 'text/plain' } });
   } catch (error) {
     console.error('Webhook error:', error);

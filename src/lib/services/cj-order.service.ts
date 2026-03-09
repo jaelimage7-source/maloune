@@ -73,8 +73,9 @@ export async function processCJOrder(orderId: string): Promise<CJOrderResult> {
 
     if (result.result && result.data) {
       // Save CJ order ID to our DB
-      const cjOrderId = result.data.orderId || result.data.orderNum || '';
-      const cjOrderNum = result.data.orderNum || result.data.orderId || '';
+      const d = result.data as any;
+      const cjOrderId = d.orderId || d.orderNum || '';
+      const cjOrderNum = d.orderNum || d.orderId || '';
       
       await prisma.order.update({
         where: { id: orderId },
