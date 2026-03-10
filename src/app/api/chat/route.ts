@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 const SYSTEM_PROMPT = `Tu es l'assistant virtuel de MALOUNE (maloune.fr), une boutique e-commerce premium qui livre en France métropolitaine et dans les DOM-TOM (Guadeloupe, Martinique, Guyane française, Réunion, Mayotte).
 
@@ -41,82 +41,49 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: 'API key not configured' },
-        { status: 500 }
-      );
+    if (!GROQ_API_KEY) {
+      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
     const { messages }: { messages: ChatMessage[] } = await request.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json(
-        { error: 'Messages required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Messages required' }, { status: 400 });
     }
 
-    // Limit conversation history to last 20 messages
     const recentMessages = messages.slice(-20);
 
-    // Convert to Gemini format
-    const geminiContents = [
-      {
-        role: 'user',
-        parts: [{ text: SYSTEM_PROMPT + '\n\n---\n\nVoici le premier message du client :' }],
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
       },
-      {
-        role: 'model',
-        parts: [{ text: "Compris ! Je suis l'assistant MALOUNE, prêt à aider les clients dans leur langue. J'attends les questions." }],
-      },
-      ...recentMessages.map((m) => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.content }],
-      })),
-    ];
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: geminiContents,
-          generationConfig: {
-            maxOutputTokens: 500,
-            temperature: 0.7,
-          },
-          safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-          ],
-        }),
-      }
-    );
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...recentMessages.map(m => ({ role: m.role, content: m.content })),
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API error:', errorText);
-      return NextResponse.json(
-        { error: 'AI service unavailable' },
-        { status: 502 }
-      );
+      console.error('Groq API error:', errorText);
+      return NextResponse.json({ error: 'AI service unavailable' }, { status: 502 });
     }
 
     const data = await response.json();
     const assistantMessage =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      data?.choices?.[0]?.message?.content ||
       'Désolé, je ne peux pas répondre pour le moment. Contactez contact@maloune.fr';
 
     return NextResponse.json({ message: assistantMessage });
   } catch (error) {
     console.error('Chat API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
