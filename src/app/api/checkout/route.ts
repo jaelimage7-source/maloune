@@ -31,15 +31,13 @@ function getPrivateKey(): string {
 
 function generateSignature(values: string[], privateKey: string): string {
   // Step 1: Join all values with dash
-  const concatenated = values.join('-');
-  // Step 2: Base64 encode
-  const base64Data = Buffer.from(concatenated).toString('base64');
-  // Step 3: Sign with SHA256
-  const sign = crypto.createSign('SHA256');
-  sign.update(base64Data);
+  const concatenated = values.join("-");
+  // Step 2: Sign the raw concatenated string (NOT base64 encoded)
+  const sign = crypto.createSign("SHA256");
+  sign.update(concatenated);
   sign.end();
-  // Step 4: Return base64 signature
-  return sign.sign(privateKey, 'base64');
+  // Step 3: Return base64 signature
+  return sign.sign(privateKey, "base64");
 }
 
 export async function POST(request: NextRequest) {
