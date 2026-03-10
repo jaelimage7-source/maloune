@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
           include: { translations: { where: { locale: 'fr' }, take: 1 } }
         }
       },
-      orderBy: { inventory: 'asc' },
+      orderBy: { cjInventory: 'asc' },
       take: 50,
     });
 
