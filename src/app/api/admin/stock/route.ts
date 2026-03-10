@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const threshold = parseInt(request.nextUrl.searchParams.get('threshold') || '5');
     const variants = await prisma.productVariant.findMany({
-      where: { inventory: { lte: threshold } },
+      where: { cjInventory: { lte: threshold } },
       include: {
         product: {
           include: { translations: { where: { locale: 'fr' }, take: 1 } }
