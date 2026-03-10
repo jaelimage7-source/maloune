@@ -64,7 +64,8 @@ export default async function LocaleLayout({ children, params }: { children: Rea
           <WhatsAppButton />
           <CookieBanner />
         </NextIntlClientProvider>
-      </body>
+      <ChatWidget />
+        </body>
     </html>
   );
 }
