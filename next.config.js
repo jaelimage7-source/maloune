@@ -16,7 +16,7 @@ const nextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.mypos.eu https://www.mypos.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data: blob:; connect-src 'self' https://api.printful.com https://www.mypos.eu https://www.mypos.com; frame-src https://www.mypos.eu https://www.mypos.com; object-src 'none'; base-uri 'self';"
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.mypos.eu https://www.mypos.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data: blob:; connect-src 'self' https://api.printful.com https://files.cdn.printful.com https://*.cjdropshipping.com https://oss-cf.cjdropshipping.com https://www.mypos.eu https://www.mypos.com; frame-src https://www.mypos.eu https://www.mypos.com; object-src 'none'; base-uri 'self';"
           },
         ],
       },
