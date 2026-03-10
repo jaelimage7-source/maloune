@@ -146,19 +146,22 @@ const QUICK_ACTIONS: Record<string, { label: string; keyword: string }[]> = {
 // ============================================
 function detectLanguage(text: string): string {
   const lower = text.toLowerCase();
-  // Haitian Creole indicators
-  const htWords = ['mwen', 'ou', 'eske', 'kisa', 'kote', 'koman', 'poukisa', 'konbyen', 'tanpri', 'souple', 'bonswa', 'bonjou', 'mèsi', 'kòmand', 'kob', 'peye', 'voye', 'ede'];
-  const enWords = ['the', 'what', 'where', 'how', 'when', 'please', 'thank', 'you', 'can', 'want', 'need', 'order', 'ship', 'return', 'pay', 'help', 'much', 'long'];
+  const words = lower.split(/\s+/);
+  
+  // Strong Creole-only indicators (not shared with French)
+  const htStrong = ["mwen", "kisa", "koman", "poukisa", "konbyen", "tanpri", "souple", "bonswa", "bonjou", "mèsi", "kòmand", "kob", "eske", "kote", "kijan", "pou m", "m ka", "w ap", "ki jan", "pa gen", "ann", "ede m", "ki sa", "li ap", "nou", "yo", "poko", "deja"];
+  const enStrong = ["the", "what", "where", "how", "when", "please", "thank", "can i", "want", "need", "order", "ship", "return", "help", "much", "long", "my", "is", "are", "this", "that", "have", "do", "does", "would", "could"];
   
   let htScore = 0;
   let enScore = 0;
   
-  htWords.forEach(w => { if (lower.includes(w)) htScore++; });
-  enWords.forEach(w => { if (lower.includes(w)) enScore++; });
+  htStrong.forEach(w => { if (lower.includes(w)) htScore += 2; });
+  enStrong.forEach(w => { if (lower.includes(w)) enScore += 2; });
   
-  if (htScore > enScore && htScore >= 1) return 'ht';
-  if (enScore > htScore && enScore >= 1) return 'en';
-  return 'fr'; // default French
+  // French is default - only switch if strong evidence
+  if (htScore >= 4 && htScore > enScore * 2) return "ht";
+  if (enScore >= 4 && enScore > htScore * 2) return "en";
+  return "fr";
 }
 
 function findBestMatch(input: string): { response: string; lang: string } | null {
