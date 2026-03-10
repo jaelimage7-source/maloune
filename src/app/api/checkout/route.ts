@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     // Save order to DB before redirect
     try {
       await createOrder({
-        orderNumber,
+        orderId: orderNumber,
         items: items.map(item => ({
           name: item.name,
           price: item.price,
@@ -91,10 +91,8 @@ export async function POST(request: NextRequest) {
           variantId: item.variantId || undefined,
           image: item.image || undefined,
         })),
-        total,
+        totalAmount: total,
         currency: 'EUR',
-        customerEmail: shipping.email || 'unknown@maloune.fr',
-        customerName: `${shipping.firstName || 'Client'} ${shipping.lastName || ''}`.trim(),
         shipping: {
           firstName: shipping.firstName || 'Client',
           lastName: shipping.lastName || '',
