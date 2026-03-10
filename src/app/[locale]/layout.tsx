@@ -10,6 +10,7 @@ import PWAInstall from '@/components/layout/PWAInstall';
 import PromoBar from '@/components/layout/PromoBar';
 import CookieBanner from '@/components/layout/CookieBanner';
 import WhatsAppButton from '@/components/layout/WhatsAppButton';
+import ChatWidget from '@/components/layout/ChatWidget';
 import '@/styles/globals.css';
 
 const dmSans = DM_Sans({
@@ -63,8 +64,8 @@ export default async function LocaleLayout({ children, params }: { children: Rea
             <PWAInstall />
           <WhatsAppButton />
           <CookieBanner />
+          <ChatWidget />
         </NextIntlClientProvider>
-      <ChatWidget />
         </body>
     </html>
   );
