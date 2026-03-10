@@ -6,6 +6,7 @@ import { routing } from '@/i18n/routing';
 import { DM_Sans } from 'next/font/google';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import PWAInstall from '@/components/layout/PWAInstall';
 import PromoBar from '@/components/layout/PromoBar';
 import CookieBanner from '@/components/layout/CookieBanner';
 import WhatsAppButton from '@/components/layout/WhatsAppButton';
@@ -18,15 +19,32 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: { default: 'Maloune — Boutique en ligne', template: '%s | Maloune' },
-  icons: {
-    icon: [{ url: '/favicon.ico', sizes: 'any' }, { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' }, { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' }],
-    apple: '/apple-touch-icon.png',
+  title: {
+    default: "Maloune — Boutique en ligne",
+    template: "%s | Maloune",
   },
-  manifest: '/site.webmanifest',
-  description: 'Découvrez les meilleurs produits livrés chez vous. Paiement sécurisé, livraison rapide.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://maloune.fr'),
-  openGraph: { type: 'website', siteName: 'Maloune', locale: 'fr_FR', alternateLocale: ['ht_HT', 'en_US'] },
+  description: "Boutique en ligne pour la diaspora — Mode, Accessoires, Tech",
+  manifest: "/site.webmanifest",
+  themeColor: "#B8860B",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Maloune",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Maloune",
+    title: "Maloune — Boutique en ligne",
+    description: "Boutique en ligne pour la diaspora — Mode, Accessoires, Tech",
+    url: "https://maloune.fr",
+  },
+  icons: {
+    icon: [{ url: "/favicon.ico" }, { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png" }],
+  },
 };
 
 export default async function LocaleLayout({ children, params }: { children: React.ReactNode; params: { locale: string } }) {
@@ -42,6 +60,7 @@ export default async function LocaleLayout({ children, params }: { children: Rea
           <Header />
           <div className="min-h-screen">{children}</div>
           <Footer />
+            <PWAInstall />
           <WhatsAppButton />
           <CookieBanner />
         </NextIntlClientProvider>
