@@ -88,7 +88,7 @@ export default function SalesChart() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 10 }} stroke="#9ca3af" />
               <YAxis tickFormatter={formatEuro} tick={{ fontSize: 10 }} stroke="#9ca3af" width={50} />
-              <Tooltip formatter={(v: number) => [`${v.toFixed(2)}€`, 'Revenu']} labelFormatter={formatDate}
+              <Tooltip formatter={((v: any) => [`${Number(v).toFixed(2)}€`, 'Revenu']) as any} labelFormatter={formatDate as any}
                 contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
               <Area type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={2} fill="url(#colorRevenue)" />
             </AreaChart>
@@ -97,7 +97,7 @@ export default function SalesChart() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 10 }} stroke="#9ca3af" />
               <YAxis tickFormatter={formatEuro} tick={{ fontSize: 10 }} stroke="#9ca3af" width={50} />
-              <Tooltip formatter={(v: number) => [`${v.toFixed(2)}€`, 'Revenu']} labelFormatter={formatDate}
+              <Tooltip formatter={((v: any) => [`${Number(v).toFixed(2)}€`, 'Revenu']) as any} labelFormatter={formatDate as any}
                 contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
               <Bar dataKey="revenue" fill="#f97316" radius={[4, 4, 0, 0]} />
             </BarChart>
