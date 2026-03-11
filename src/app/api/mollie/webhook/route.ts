@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createMollieClient } from '@mollie/api-client';
 import { prisma } from '@/lib/prisma';
 
-const mollieClient = createMollieClient({
-  apiKey: process.env.MOLLIE_API_KEY!,
-});
+function getMollieClient() {
+  return createMollieClient({ apiKey: process.env.MOLLIE_API_KEY! });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No payment ID' }, { status: 400 });
     }
 
-    const payment = await mollieClient.payments.get(paymentId);
+    const payment = await getMollieClient().payments.get(paymentId);
     const orderNumber = (payment.metadata as any)?.orderNumber;
 
     if (!orderNumber) {

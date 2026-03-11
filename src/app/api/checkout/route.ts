@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createMollieClient } from '@mollie/api-client';
 import { createOrder } from '@/lib/services/order.service';
 
-const mollieClient = createMollieClient({
-  apiKey: process.env.MOLLIE_API_KEY!,
-});
+function getMollieClient() {
+  return createMollieClient({ apiKey: process.env.MOLLIE_API_KEY! });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       ? items[0].name
       : `MALOUNE — ${items.length} articles`;
 
-    const payment = await mollieClient.payments.create({
+    const payment = await getMollieClient().payments.create({
       amount: {
         currency: 'EUR',
         value: total.toFixed(2),
