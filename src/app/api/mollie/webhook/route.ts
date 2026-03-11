@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
         data: {
           status: orderStatus,
 
-          paidAt: orderStatus === "PAID" ? new Date() : undefined,
         },
       });
       console.log(`Order ${orderNumber} updated to ${orderStatus}`);
