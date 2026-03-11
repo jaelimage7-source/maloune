@@ -1,27 +1,39 @@
 import createMiddleware from 'next-intl/middleware';
-import { routing } from './i18n/routing';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { routing } from '@/i18n/routing';
+
+const MAINTENANCE_MODE = true;
 
 const intlMiddleware = createMiddleware(routing);
 
 export default function middleware(request: NextRequest) {
-  // Run i18n middleware first
-  const response = intlMiddleware(request);
-  
-  // V-07: Add Secure flag to cookies
-  const cookies = response.headers.getSetCookie?.() || [];
-  if (cookies.length > 0) {
-    for (const cookie of cookies) {
-      if (!cookie.includes('Secure')) {
-        // Response already set by intl middleware, just ensure secure
-      }
+  const { pathname } = request.nextUrl;
+
+  // Allow these paths even in maintenance
+  const allowedPaths = [
+    '/api/',
+    '/_next/',
+    '/favicon',
+    '/android-chrome',
+    '/apple-touch',
+    '/site.webmanifest',
+    '/sw.js',
+  ];
+
+  if (MAINTENANCE_MODE) {
+    const isAllowed = allowedPaths.some(p => pathname.startsWith(p));
+    const isMainPage = pathname === '/' || /^\/[a-z]{2}$/.test(pathname) || /^\/[a-z]{2}\/$/.test(pathname);
+
+    if (!isAllowed && !isMainPage) {
+      // Redirect everything to homepage (which shows maintenance)
+      const locale = pathname.match(/^\/([a-z]{2})\//)?.[1] || 'fr';
+      return NextResponse.redirect(new URL(`/${locale}`, request.url));
     }
   }
-  
-  return response;
+
+  return intlMiddleware(request);
 }
 
 export const config = {
-  matcher: ['/', '/(fr|en|ht|es|pt|de|it|nl|ar|ja|zh|ko|ru|pl|tr|sv)/:path*'],
+  matcher: ['/((?!_next|.*\\..*).*)'],
 };
