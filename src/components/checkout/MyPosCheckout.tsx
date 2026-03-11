@@ -11,27 +11,37 @@ export default function MyPosCheckout() {
   const items = useCartStore((s) => s.items);
   const locale = useLocale();
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (items.length === 0) return;
     setLoading(true);
-    // Submit the hidden form - API returns HTML that auto-submits to myPOS
-    if (formRef.current) {
-      formRef.current.submit();
-    }
-  };
-
-  return (
-    <>
-      <form ref={formRef} method="POST" action="/api/checkout" style={{ display: 'none' }}>
-        <input type="hidden" name="data" value={JSON.stringify({
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           items: items.map(item => ({
             name: item.name,
             price: item.price,
             quantity: item.quantity || 1,
           })),
           locale,
-        })} />
-      </form>
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Erreur de paiement");
+        setLoading(false);
+      }
+    } catch {
+      alert("Erreur de connexion");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
 
       <button
         onClick={handleCheckout}
@@ -47,7 +57,7 @@ export default function MyPosCheckout() {
 
       <div className="flex items-center justify-center gap-2 mt-3 text-xs text-gray-500">
         <ShieldCheck className="w-4 h-4 text-green-500" />
-        <span>Paiement sécurisé par myPOS — Visa, Mastercard</span>
+        <span>Paiement sécurisé — Visa, Mastercard, Apple Pay</span>
       </div>
     </>
   );
