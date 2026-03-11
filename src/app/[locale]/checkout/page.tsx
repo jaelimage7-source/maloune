@@ -50,13 +50,31 @@ export default function CheckoutPage() {
     if (validateStep1()) setStep(2);
   };
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     setLoading(true);
     try {
-      localStorage.setItem('maloune_shipping', JSON.stringify(form));
+      localStorage.setItem("maloune_shipping", JSON.stringify(form));
     } catch (e) { /* ignore */ }
-    if (formRef.current) {
-      formRef.current.submit();
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, productId: i.productId || undefined, variantId: i.variantId || undefined, image: i.image || undefined })),
+          locale,
+          shipping: form,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Erreur de paiement");
+        setLoading(false);
+      }
+    } catch {
+      alert("Erreur de connexion");
+      setLoading(false);
     }
   };
 
@@ -277,14 +295,6 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Hidden form for myPOS */}
-                <form ref={formRef} method="POST" action="/api/checkout" style={{ display: 'none' }}>
-                  <input type="hidden" name="data" value={JSON.stringify({
-                    items: items.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, productId: i.productId || undefined, variantId: i.variantId || undefined, image: i.image || undefined })),
-                    locale,
-                    shipping: form,
-                  })} />
-                </form>
 
                 {/* Buttons */}
                 <div className="flex gap-3">
@@ -309,7 +319,7 @@ export default function CheckoutPage() {
 
                 <div className="flex items-center justify-center gap-2 mt-4 text-xs text-gray-400">
                   <ShieldCheck className="w-4 h-4 text-green-500" />
-                  Paiement sécurisé par myPOS — Visa, Mastercard, Google Pay
+                  Paiement sécurisé — Visa, Mastercard, Apple Pay
                 </div>
               </div>
             )}
