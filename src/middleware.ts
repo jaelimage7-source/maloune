@@ -12,6 +12,10 @@ export default function middleware(request: NextRequest) {
   // Allow these paths even in maintenance
   const allowedPaths = [
     '/api/',
+    '/mentions-legales',
+    '/conditions-generales',
+    '/politique-confidentialite',
+    '/politique-remboursement',
     '/_next/',
     '/favicon',
     '/android-chrome',
