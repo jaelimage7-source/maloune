@@ -11,6 +11,8 @@ import PromoBar from '@/components/layout/PromoBar';
 import CookieBanner from '@/components/layout/CookieBanner';
 import WhatsAppButton from '@/components/layout/WhatsAppButton';
 import ChatWidget from '@/components/layout/ChatWidget';
+import PreLaunchBanner from '@/components/layout/PreLaunchBanner';
+import CartBlocker from '@/components/layout/CartBlocker';
 import '@/styles/globals.css';
 
 const dmSans = DM_Sans({
@@ -57,6 +59,7 @@ export default async function LocaleLayout({ children, params }: { children: Rea
     <html lang={locale} suppressHydrationWarning>
       <body className={dmSans.className} suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
+          <PreLaunchBanner />
           <PromoBar />
           <Header />
           <div className="min-h-screen">{children}</div>
@@ -64,6 +67,7 @@ export default async function LocaleLayout({ children, params }: { children: Rea
             <PWAInstall />
           <WhatsAppButton />
           <CookieBanner />
+          <CartBlocker />
           <ChatWidget />
         </NextIntlClientProvider>
         </body>
