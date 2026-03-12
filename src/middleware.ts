@@ -2,7 +2,7 @@ import createMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
 import { routing } from '@/i18n/routing';
 
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 const intlMiddleware = createMiddleware(routing);
 
