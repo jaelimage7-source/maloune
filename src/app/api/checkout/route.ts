@@ -1,16 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createMollieClient } from '@mollie/api-client';
+import Stripe from 'stripe';
 import { createOrder } from '@/lib/services/order.service';
 
-function getMollieClient() {
-  return createMollieClient({ apiKey: process.env.MOLLIE_API_KEY! });
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2026-04-22.dahlia',
+  });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.MOLLIE_API_KEY) {
+    if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json({ error: 'Payment not configured' }, { status: 500 });
     }
 
@@ -69,36 +71,38 @@ export async function POST(request: NextRequest) {
       console.error('Order save error (continuing):', dbErr);
     }
 
-    // Create Mollie payment
-    const description = items.length === 1
-      ? items[0].name
-      : `MALOUNE — ${items.length} articles`;
+    const stripe = getStripe();
 
-    const payment = await getMollieClient().payments.create({
-      amount: {
-        currency: 'EUR',
-        value: total.toFixed(2),
-      },
-      description: `${description} (${orderNumber})`,
-      redirectUrl: `${baseUrl}/${locale}/checkout/success?order=${orderNumber}`,
-      cancelUrl: `${baseUrl}/${locale}/checkout?cancelled=1`,
-      webhookUrl: `${baseUrl}/api/mollie/webhook`,
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: items.map((item) => ({
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: item.name,
+            ...(item.image && item.image.startsWith('http') ? { images: [item.image] } : {}),
+          },
+          unit_amount: Math.round(item.price * 100),
+        },
+        quantity: item.quantity,
+      })),
+      success_url: `${baseUrl}/${locale}/checkout/success?order=${orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/${locale}/checkout?cancelled=1`,
+      customer_email: shipping.email || undefined,
+      locale: locale === 'fr' ? 'fr' : 'en',
       metadata: {
         orderNumber,
         locale,
         customerEmail: shipping.email || '',
       },
-      locale: (locale === 'fr' ? 'fr_FR' : 'en_US') as any,
     });
 
-    // Redirect to Mollie checkout
-    const checkoutUrl = (payment as any)._links?.checkout?.href || null;
-
-    if (!checkoutUrl) {
+    if (!session.url) {
       return NextResponse.json({ error: 'Failed to create payment' }, { status: 500 });
     }
 
-    return NextResponse.json({ url: checkoutUrl });
+    return NextResponse.json({ url: session.url });
 
   } catch (error: unknown) {
     console.error('Checkout error:', error);
